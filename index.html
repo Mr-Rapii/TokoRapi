@@ -1,1 +1,520 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cerita Rafi & Ndah - Visual Scene</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a2e;
+            color: white;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            margin: 20px 0;
+            color: #e94560;
+            text-shadow: 0 0 10px #e94560;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            width: 100%;
+        }
+        .card {
+            background: #16213e;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 0 20px rgba(233, 69, 96, 0.3);
+            transition: 0.3s;
+        }
+        .card:hover {
+            transform: scale(1.03);
+            box-shadow: 0 0 30px #e94560;
+        }
+        .canvas-wrap {
+            background: #0f3460;
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            image-rendering: pixelated;
+        }
+        .judul-scene {
+            margin-top: 10px;
+            font-weight: bold;
+            color: #e94560;
+            text-align: center;
+        }
+        .deskripsi {
+            margin-top: 5px;
+            font-size: 12px;
+            color: #aaa;
+            text-align: center;
+            padding: 0 10px;
+        }
+        .footer {
+            margin-top: 40px;
+            color: #555;
+            font-size: 14px;
+            border-top: 1px solid #333;
+            padding-top: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
 
+    <h1>🔥 RAFI & NDAH - 9 SCENE 🔥</h1>
+    <div class="container" id="sceneContainer"></div>
+    <div class="footer">© Copyright By Xtan - Xyro | Visual by Kode</div>
+
+    <script>
+        // ====== DATA SCENE ======
+        const scenes = [{
+            judul: "1. Kantin Sekolah",
+            desc: "Rafi & Ndah berdua di kantin, pegangan tangan.",
+            draw: (ctx, w, h) => {
+                // background
+                ctx.fillStyle = "#f5e6d3";
+                ctx.fillRect(0, 0, w, h);
+                // meja
+                ctx.fillStyle = "#8B6B4A";
+                ctx.fillRect(40, h/2+10, w-80, 30);
+                // tubuh Rafi (kiri)
+                ctx.fillStyle = "#4A6FA5";
+                ctx.fillRect(60, h/2-50, 40, 60);
+                ctx.fillStyle = "#F5D0B8";
+                ctx.beginPath();
+                ctx.arc(80, h/2-60, 20, 0, Math.PI*2);
+                ctx.fill();
+                // tubuh Ndah (kanan)
+                ctx.fillStyle = "#E88FAC";
+                ctx.fillRect(w-100, h/2-50, 40, 60);
+                ctx.fillStyle = "#F5D0B8";
+                ctx.beginPath();
+                ctx.arc(w-80, h/2-60, 20, 0, Math.PI*2);
+                ctx.fill();
+                // tangan pegangan
+                ctx.fillStyle = "#F5D0B8";
+                ctx.fillRect(100, h/2-10, 30, 10);
+                // label
+                ctx.fillStyle = "#333";
+                ctx.font = "10px Arial";
+                ctx.fillText("Rafi", 65, h/2-80);
+                ctx.fillText("Ndah", w-95, h/2-80);
+            }
+        }, {
+            judul: "2. Naik Motor",
+            desc: "Rafi bawa motor, Ndah peluk dari belakang.",
+            draw: (ctx, w, h) => {
+                ctx.fillStyle = "#87CEEB";
+                ctx.fillRect(0, 0, w, h);
+                // motor
+                ctx.fillStyle = "#2C3E50";
+                ctx.fillRect(w/2-40, h/2+20, 80, 20);
+                ctx.fillRect(w/2-20, h/2, 15, 30);
+                ctx.fillRect(w/2+5, h/2, 15, 30);
+                // Rafi
+                ctx.fillStyle = "#4A6FA5";
+                ctx.fillRect(w/2-25, h/2-40, 20, 40);
+                ctx.fillStyle = "#F5D0B8";
+                ctx.beginPath();
+                ctx.arc(w/2-15, h/2-50, 12, 0, Math.PI*2);
+                ctx.fill();
+                // Ndah
+                ctx.fillStyle = "#E88FAC";
+                ctx.fillRect(w/2+5, h/2-30, 20, 30);
+                ctx.fillStyle = "#F5D0B8";
+                ctx.beginPath();
+                ctx.arc(w/2+15, h/2-40, 12, 0, Math.PI*2);
+                ctx.fill();
+                // tangan peluk
+                ctx.fillStyle = "#F5D0B8";
+                ctx.fillRect(w/2-25, h/2-20, 30, 8);
+                // matahari
+                ctx.fillStyle = "#FFD700";
+                ctx.beginPath();
+                ctx.arc(w-40, 30, 20, 0, Math.PI*2);
+                ctx.fill();
+            }
+        }, {
+            judul: "3. Ruang Tamu",
+            desc: "Rafi cium pipi Ndah di sofa.",
+            draw: (ctx, w, h) => {
+                ctx.fillStyle = "#D2B48C";
+                ctx.fillRect(0, 0, w, h);
+                // sofa
+                ctx.fillStyle = "#8B4513";
+                ctx.fillRect(20, h/2, w-40, 60);
+                ctx.fillRect(30, h/2-20, 20, 20);
+                ctx.fillRect(w-50, h/2-20, 20, 20);
+                // Rafi
+                ctx.fillStyle = "#4A6FA5";
+                ctx.fillRect(70, h/2-40, 30, 40);
+                ctx.fillStyle = "#F5D0B8";
+                ctx.beginPath();
+                ctx.arc(85, h/2-50, 15, 0, Math.PI*2);
+                ctx.fill();
+                // Ndah
+                ctx.fillStyle = "#E88FAC";
+                ctx.fillRect(w-100, h/2-40, 30, 40);
+                ctx.fillStyle = "#F5D0B8";
+                ctx.beginPath();
+                ctx.arc(w-85, h/2-50, 15, 0, Math.PI*2);
+                ctx.fill();
+                // ciuman (bibir tempel)
+                ctx.fillStyle = "#FF6B81";
+                ctx.beginPath();
+                ctx.arc(110, h/2-45, 5, 0, Math.PI*2);
+                ctx.fill();
+                // TV
+                ctx.fillStyle = "#1a1a2e";
+                ctx.fillRect(w-160, 30, 100, 60);
+                ctx.fillStyle = "#00BFFF";
+                ctx.fillRect(w-150, 40, 80, 40);
+                ctx.fillStyle = "#fff";
+                ctx.font = "8px Arial";
+                ctx.fillText("TV", w-120, 60);
+            }
+        }, {
+            judul: "4. Ciuman Panas",
+            desc: "Di kamar Ndah, mulai panas.",
+            draw: (ctx, w, h) => {
+                ctx.fillStyle = "#2C1A1A";
+                ctx.fillRect(0, 0, w, h);
+                // kasur
+                ctx.fillStyle = "#E88FAC";
+                ctx.fillRect(30, h-120, w-60, 80);
+                // bantal
+                ctx.fillStyle = "#FFB6C1";
+                ctx.fillRect(40, h-130, 40, 20);
+                // Rafi di atas
+                ctx.fillStyle = "#F5D0B8";
+                ctx.beginPath();
+                ctx.arc(w/2-30, h-150, 18, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = "#4A6FA5";
+                ctx.fillRect(w/2-40, h-130, 25, 40);
+                // Ndah di bawah
+                ctx.fillStyle = "#F5D0B8";
+                ctx.beginPath();
+                ctx.arc(w/2+20, h-140, 16, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = "#E88FAC";
+                ctx.fillRect(w/2+5, h-120, 25, 35);
+                // hati
+                ctx.fillStyle = "#FF1493";
+                ctx.font = "20px Arial";
+                ctx.fillText("❤️", w/2-10, h-170);
+                // lampu temaram
+                ctx.fillStyle = "#FFD700";
+                ctx.beginPath();
+                ctx.arc(w-30, 20, 10, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = "rgba(255,215,0,0.2)";
+                ctx.beginPath();
+                ctx.arc(w-30, 20, 40, 0, Math.PI*2);
+                ctx.fill();
+            }
+        }, {
+            judul: "5. Adegan Panas (18+)",
+            desc: "Rafi & Ndah berhubungan, desahan.",
+            draw: (ctx, w, h) => {
+                ctx.fillStyle = "#1A0E0E";
+                ctx.fillRect(0, 0, w, h);
+                // kasur berantakan
+                ctx.fillStyle = "#8B5A5A";
+                ctx.fillRect(20, h-130, w-40, 90);
+                ctx.fillStyle = "#A0522D";
+                for (let i=0; i<10; i++) {
+                    ctx.fillRect(30+i*25, h-120, 15, 5);
+                }
+                // tubuh Rafi (atas)
+                ctx.fillStyle = "#F5D0B8";
+                ctx.beginPath();
+                ctx.arc(w/2-30, h-160, 15, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = "#4A6FA5";
+                ctx.fillRect(w/2-40, h-140, 20, 50);
+                // tubuh Ndah (bawah)
+                ctx.fillStyle = "#F5D0B8";
+                ctx.beginPath();
+                ctx.arc(w/2+10, h-145, 14, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = "#E88FAC";
+                ctx.fillRect(w/2, h-125, 20, 40);
+                // ekspresi desahan
+                ctx.fillStyle = "#FF6B81";
+                ctx.font = "14px Arial";
+                ctx.fillText("💦 Aaahh...", w/2-40, h-190);
+                ctx.fillText("😩 Fi...", w/2-60, h-210);
+                // selimut
+                ctx.fillStyle = "#6A4E4E";
+                ctx.fillRect(50, h-60, w-100, 30);
+                // efek gerak
+                ctx.fillStyle = "rgba(255,100,100,0.1)";
+                for (let i=0; i<5; i++) {
+                    ctx.beginPath();
+                    ctx.arc(w/2-20+i*15, h-90+i*8, 20, 0, Math.PI*2);
+                    ctx.fill();
+                }
+            }
+        }, {
+            judul: "6. Bebaringan",
+            desc: "Lelah, pelukan, tatapan kosong.",
+            draw: (ctx, w, h) => {
+                ctx.fillStyle = "#2C2C3A";
+                ctx.fillRect(0, 0, w, h);
+                // kasur
+                ctx.fillStyle = "#4A4A5A";
+                ctx.fillRect(20, h-100, w-40, 70);
+                // selimut
+                ctx.fillStyle = "#6A5A6A";
+                ctx.fillRect(40, h-80, w-80, 40);
+                // kepala Rafi
+                ctx.fillStyle = "#F5D0B8";
+                ctx.beginPath();
+                ctx.arc(70, h-120, 15, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = "#4A6FA5";
+                ctx.fillRect(60, h-100, 20, 30);
+                // kepala Ndah
+                ctx.fillStyle = "#F5D0B8";
+                ctx.beginPath();
+                ctx.arc(w-70, h-120, 15, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = "#E88FAC";
+                ctx.fillRect(w-80, h-100, 20, 30);
+                // tangan peluk
+                ctx.fillStyle = "#F5D0B8";
+                ctx.fillRect(80, h-110, 40, 8);
+                // bintang
+                ctx.fillStyle = "#FFD700";
+                for (let i=0; i<10; i++) {
+                    ctx.beginPath();
+                    ctx.arc(20+i*40, 20+i*5, 2, 0, Math.PI*2);
+                    ctx.fill();
+                }
+                // bubble "...."
+                ctx.fillStyle = "#aaa";
+                ctx.font = "16px Arial";
+                ctx.fillText("...", w/2-10, h-150);
+            }
+        }, {
+            judul: "7. Toilet Sekolah",
+            desc: "Ndah pegang test pack positif, nangis.",
+            draw: (ctx, w, h) => {
+                ctx.fillStyle = "#E0E0E0";
+                ctx.fillRect(0, 0, w, h);
+                // ubin
+                ctx.fillStyle = "#C0C0C0";
+                for (let i=0; i<8; i++) {
+                    for (let j=0; j<6; j++) {
+                        ctx.fillRect(i*50, j*50, 48, 48);
+                    }
+                }
+                // cermin
+                ctx.fillStyle = "#A0C0D0";
+                ctx.fillRect(w/2-60, 20, 120, 100);
+                ctx.fillStyle = "#fff";
+                ctx.fillRect(w/2-55, 25, 110, 90);
+                // pantulan Ndah (di cermin)
+                ctx.fillStyle = "#F5D0B8";
+                ctx.beginPath();
+                ctx.arc(w/2, 60, 20, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = "#E88FAC";
+                ctx.fillRect(w/2-15, 75, 30, 35);
+                // air mata
+                ctx.fillStyle = "#00BFFF";
+                for (let i=0; i<4; i++) {
+                    ctx.beginPath();
+                    ctx.arc(w/2-8+i*5, 80+i*10, 3, 0, Math.PI*2);
+                    ctx.fill();
+                }
+                // test pack
+                ctx.fillStyle = "#FFFFFF";
+                ctx.fillRect(w/2+40, 80, 30, 15);
+                ctx.fillStyle = "#FF0000";
+                ctx.fillRect(w/2+50, 85, 10, 5);
+                ctx.fillStyle = "#FF0000";
+                ctx.fillRect(w/2+50, 92, 10, 5);
+                ctx.fillStyle = "#FF0000";
+                ctx.font = "8px Arial";
+                ctx.fillText("POSITIF", w/2+35, 105);
+                // wastafel
+                ctx.fillStyle = "#D0D0D0";
+                ctx.beginPath();
+                ctx.ellipse(w/2-40, 140, 40, 20, 0, 0, Math.PI*2);
+                ctx.fill();
+                // air mengalir
+                ctx.fillStyle = "#00BFFF";
+                ctx.fillRect(w/2-55, 135, 8, 20);
+            }
+        }, {
+            judul: "8. Ruang BK",
+            desc: "Orang tua marah, Rafi & Ndah tertunduk.",
+            draw: (ctx, w, h) => {
+                ctx.fillStyle = "#F5E6D3";
+                ctx.fillRect(0, 0, w, h);
+                // meja BK
+                ctx.fillStyle = "#8B6B4A";
+                ctx.fillRect(w/2-80, h/2-10, 160, 20);
+                // guru BK
+                ctx.fillStyle = "#2C3E50";
+                ctx.fillRect(w/2-20, h/2-80, 40, 70);
+                ctx.fillStyle = "#F5D0B8";
+                ctx.beginPath();
+                ctx.arc(w/2, h/2-90, 18, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = "#333";
+                ctx.font = "8px Arial";
+                ctx.fillText("Guru BK", w/2-20, h/2-100);
+                // Rafi (kiri)
+                ctx.fillStyle = "#4A6FA5";
+                ctx.fillRect(w/2-120, h/2+20, 30, 50);
+                ctx.fillStyle = "#F5D0B8";
+                ctx.beginPath();
+                ctx.arc(w/2-105, h/2+10, 14, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = "#FF0000";
+                ctx.fillRect(w/2-115, h/2+35, 20, 3);
+                ctx.fillText("😞", w/2-120, h/2-5);
+                // orang tua Rafi
+                ctx.fillStyle = "#34495E";
+                ctx.fillRect(w/2-160, h/2+0, 30, 40);
+                ctx.fillStyle = "#F5D0B8";
+                ctx.beginPath();
+                ctx.arc(w/2-145, h/2-10, 12, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = "#FF0000";
+                ctx.font = "10px Arial";
+                ctx.fillText("🔥", w/2-160, h/2-30);
+                // Ndah (kanan)
+                ctx.fillStyle = "#E88FAC";
+                ctx.fillRect(w/2+90, h/2+20, 30, 50);
+                ctx.fillStyle = "#F5D0B8";
+                ctx.beginPath();
+                ctx.arc(w/2+105, h/2+10, 14, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = "#00BFFF";
+                ctx.fillRect(w/2+95, h/2+35, 20, 3);
+                ctx.fillText("😢", w/2+90, h/2-5);
+                // orang tua Ndah
+                ctx.fillStyle = "#E67E22";
+                ctx.fillRect(w/2+130, h/2+0, 30, 40);
+                ctx.fillStyle = "#F5D0B8";
+                ctx.beginPath();
+                ctx.arc(w/2+145, h/2-10, 12, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = "#FF0000";
+                ctx.font = "10px Arial";
+                ctx.fillText("💢", w/2+130, h/2-30);
+            }
+        }, {
+            judul: "9. Epilog - Kamar yang Sama",
+            desc: "Suram, test pack di lantai, diam.",
+            draw: (ctx, w, h) => {
+                ctx.fillStyle = "#1A1A2E";
+                ctx.fillRect(0, 0, w, h);
+                // kasur
+                ctx.fillStyle = "#3A2A3A";
+                ctx.fillRect(30, h-130, w-60, 90);
+                // bantal kusut
+                ctx.fillStyle = "#5A4A5A";
+                ctx.fillRect(40, h-140, 50, 20);
+                // Rafi duduk di lantai (kiri)
+                ctx.fillStyle = "#4A6FA5";
+                ctx.fillRect(60, h-80, 30, 50);
+                ctx.fillStyle = "#F5D0B8";
+                ctx.beginPath();
+                ctx.arc(75, h-90, 14, 0, Math.PI*2);
+                ctx.fill();
+                // Ndah duduk di lantai (kanan)
+                ctx.fillStyle = "#E88FAC";
+                ctx.fillRect(w-90, h-80, 30, 50);
+                ctx.fillStyle = "#F5D0B8";
+                ctx.beginPath();
+                ctx.arc(w-75, h-90, 14, 0, Math.PI*2);
+                ctx.fill();
+                // test pack di lantai
+                ctx.fillStyle = "#FFFFFF";
+                ctx.fillRect(w/2-15, h-40, 30, 15);
+                ctx.fillStyle = "#FF0000";
+                ctx.fillRect(w/2-5, h-35, 10, 5);
+                ctx.fillRect(w/2-5, h-28, 10, 5);
+                ctx.fillStyle = "#FF0000";
+                ctx.font = "6px Arial";
+                ctx.fillText("POSITIF", w/2-12, h-20);
+                // suasana suram
+                ctx.fillStyle = "rgba(0,0,0,0.4)";
+                ctx.fillRect(0, 0, w, h);
+                // judul epilog
+                ctx.fillStyle = "#E94560";
+                ctx.font = "14px Arial";
+                ctx.fillText("EPILOG", w/2-30, 30);
+                // bubble diam
+                ctx.fillStyle = "#666";
+                ctx.font = "20px Arial";
+                ctx.fillText("...", w/2-10, h-110);
+                // bulan
+                ctx.fillStyle = "#666";
+                ctx.beginPath();
+                ctx.arc(w-50, 30, 20, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = "#1A1A2E";
+                ctx.beginPath();
+                ctx.arc(w-40, 25, 18, 0, Math.PI*2);
+                ctx.fill();
+            }
+        }];
+
+        // ====== RENDER ======
+        const container = document.getElementById('sceneContainer');
+
+        scenes.forEach((scene, index) => {
+            const card = document.createElement('div');
+            card.className = 'card';
+
+            const canvasWrap = document.createElement('div');
+            canvasWrap.className = 'canvas-wrap';
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 400;
+            canvas.height = 300;
+            const ctx = canvas.getContext('2d');
+            scene.draw(ctx, 400, 300);
+
+            const judul = document.createElement('div');
+            judul.className = 'judul-scene';
+            judul.textContent = scene.judul;
+
+            const desc = document.createElement('div');
+            desc.className = 'deskripsi';
+            desc.textContent = scene.desc;
+
+            canvasWrap.appendChild(canvas);
+            card.appendChild(canvasWrap);
+            card.appendChild(judul);
+            card.appendChild(desc);
+            container.appendChild(card);
+        });
+    </script>
+</body>
+</html>
