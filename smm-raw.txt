@@ -1,0 +1,4108 @@
+--- FILE: composer.json ---
+{
+    "name": "rapi-dev/smm-panel",
+    "type": "project",
+    "description": "Rapi Dev SMM Panel",
+    "license": "MIT",
+    "require": {
+        "php": "^8.1",
+        "guzzlehttp/guzzle": "^7.2",
+        "intervention/image": "^2.7",
+        "laravel/framework": "^10.10",
+        "laravel/sanctum": "^3.3",
+        "laravel/socialite": "^5.6",
+        "laravel/tinker": "^2.8"
+    },
+    "require-dev": {
+        "fakerphp/faker": "^1.9.1",
+        "laravel/pint": "^1.0",
+        "laravel/sail": "^1.23",
+        "mockery/mockery": "^1.4.4",
+        "nunomaduro/collision": "^7.0",
+        "phpunit/phpunit": "^10.1",
+        "spatie/laravel-ignition": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/",
+            "Database\\Factories\\": "database/factories/",
+            "Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "post-autoload-dump": [
+            "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+            "@php artisan package:discover --ansi"
+        ],
+        "post-update-cmd": [
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
+        ],
+        "post-root-package-install": [
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+        ],
+        "post-create-project-cmd": [
+            "@php artisan key:generate --ansi"
+        ]
+    },
+    "extra": {
+        "laravel": {
+            "dont-discover": []
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "php-http/discovery": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
+
+--- FILE: .env.example ---
+APP_NAME="Rapi Dev SMM Panel"
+APP_ENV=local
+APP_KEY=
+APP_DEBUG=true
+APP_URL=http://localhost
+
+LOG_CHANNEL=stack
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL=debug
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=smm_panel
+DB_USERNAME=root
+DB_PASSWORD=
+
+BROADCAST_DRIVER=log
+CACHE_DRIVER=file
+FILESYSTEM_DISK=local
+QUEUE_CONNECTION=sync
+SESSION_DRIVER=file
+SESSION_LIFETIME=120
+
+MAIL_MAILER=smtp
+MAIL_HOST=mailpit
+MAIL_PORT=1025
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_ENCRYPTION=null
+MAIL_FROM_ADDRESS="noreply@rapismm.com"
+MAIL_FROM_NAME="${APP_NAME}"
+
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=http://localhost/auth/google/callback
+
+WHATSAPP_TOKEN=663999c15d3ae2d966280c63d2962df79d94b4cde2705625
+WHATSAPP_API_URL=https://api.fonnte.com/send
+
+EZKIFY_API_KEY=3aa05b172efb80403de5eb67c7dae063
+EZKIFY_API_URL=https://ezkify.com/api/v2
+
+ADMIN_WHATSAPP=628xxxxxxxxx
+
+--- FILE: config/app.php ---
+<?php
+
+use Illuminate\Support\Facades\Facade;
+use Illuminate\Support\ServiceProvider;
+
+return [
+    'name' => env('APP_NAME', 'Rapi Dev SMM Panel'),
+    'env' => env('APP_ENV', 'production'),
+    'debug' => (bool) env('APP_DEBUG', false),
+    'url' => env('APP_URL', 'http://localhost'),
+    'asset_url' => env('ASSET_URL'),
+    'timezone' => 'Asia/Jakarta',
+    'locale' => 'id',
+    'fallback_locale' => 'en',
+    'faker_locale' => 'id_ID',
+    'key' => env('APP_KEY'),
+    'cipher' => 'AES-256-CBC',
+    'maintenance' => ['driver' => 'file'],
+    'providers' => ServiceProvider::defaultProviders()->merge([
+        App\Providers\AppServiceProvider::class,
+        App\Providers\AuthServiceProvider::class,
+        App\Providers\EventServiceProvider::class,
+        App\Providers\RouteServiceProvider::class,
+        Laravel\Socialite\SocialiteServiceProvider::class,
+        Intervention\Image\ImageServiceProvider::class,
+    ])->toArray(),
+    'aliases' => Facade::defaultAliases()->merge([
+        'Image' => Intervention\Image\Facades\Image::class,
+        'Socialite' => Laravel\Socialite\Facades\Socialite::class,
+    ])->toArray(),
+];
+
+--- FILE: config/services.php ---
+<?php
+
+return [
+    'mailgun' => [
+        'domain' => env('MAILGUN_DOMAIN'),
+        'secret' => env('MAILGUN_SECRET'),
+        'endpoint' => env('MAILGUN_ENDPOINT', 'api.mailgun.net'),
+        'scheme' => 'https',
+    ],
+    'postmark' => [
+        'token' => env('POSTMARK_TOKEN'),
+    ],
+    'ses' => [
+        'key' => env('AWS_ACCESS_KEY_ID'),
+        'secret' => env('AWS_SECRET_ACCESS_KEY'),
+        'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+    ],
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
+    ],
+    'whatsapp' => [
+        'token' => env('WHATSAPP_TOKEN'),
+        'api_url' => env('WHATSAPP_API_URL', 'https://api.fonnte.com/send'),
+    ],
+    'ezkify' => [
+        'api_key' => env('EZKIFY_API_KEY'),
+        'api_url' => env('EZKIFY_API_URL', 'https://ezkify.com/api/v2'),
+    ],
+];
+
+--- FILE: config/socialite.php ---
+<?php
+
+return [
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
+        'scopes' => ['openid', 'profile', 'email'],
+    ],
+];
+
+--- FILE: database/migrations/2024_01_01_000001_create_users_table.php ---
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration {
+    public function up(): void
+    {
+        Schema::create('users', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('email')->unique();
+            $table->string('phone')->nullable();
+            $table->string('google_id')->nullable()->unique();
+            $table->timestamp('email_verified_at')->nullable();
+            $table->string('password')->nullable();
+            $table->decimal('balance', 12, 2)->default(0);
+            $table->boolean('is_admin')->default(false);
+            $table->boolean('is_active')->default(true);
+            $table->rememberToken();
+            $table->timestamps();
+        });
+
+        Schema::create('password_reset_tokens', function (Blueprint $table) {
+            $table->string('email')->primary();
+            $table->string('token');
+            $table->timestamp('created_at')->nullable();
+        });
+
+        Schema::create('sessions', function (Blueprint $table) {
+            $table->string('id')->primary();
+            $table->foreignId('user_id')->nullable()->index();
+            $table->string('ip_address', 45)->nullable();
+            $table->text('user_agent')->nullable();
+            $table->longText('payload');
+            $table->integer('last_activity')->index();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('users');
+        Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('sessions');
+    }
+};
+
+--- FILE: database/migrations/2024_01_01_000002_create_services_table.php ---
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration {
+    public function up(): void
+    {
+        Schema::create('services', function (Blueprint $table) {
+            $table->id();
+            $table->string('service_id')->unique()->index();
+            $table->string('name');
+            $table->string('type')->nullable();
+            $table->string('category');
+            $table->decimal('rate', 12, 4)->default(0);
+            $table->decimal('custom_rate', 12, 4)->nullable();
+            $table->unsignedInteger('min')->default(10);
+            $table->unsignedInteger('max')->default(10000);
+            $table->boolean('is_active')->default(true);
+            $table->text('description')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('services');
+    }
+};
+
+--- FILE: database/migrations/2024_01_01_000003_create_orders_table.php ---
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration {
+    public function up(): void
+    {
+        Schema::create('orders', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignId('service_id')->constrained()->onDelete('cascade');
+            $table->string('link');
+            $table->unsignedInteger('quantity');
+            $table->decimal('price', 12, 2);
+            $table->string('status')->default('pending');
+            $table->string('api_order_id')->nullable();
+            $table->unsignedInteger('start_count')->nullable();
+            $table->unsignedInteger('remains')->nullable();
+            $table->text('notes')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('orders');
+    }
+};
+
+--- FILE: database/migrations/2024_01_01_000004_create_transactions_table.php ---
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration {
+    public function up(): void
+    {
+        Schema::create('transactions', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->decimal('amount', 12, 2);
+            $table->string('type'); // topup, order_deduction, refund
+            $table->string('reference')->nullable();
+            $table->string('status')->default('pending'); // pending, approved, rejected
+            $table->string('payment_proof')->nullable();
+            $table->text('notes')->nullable();
+            $table->foreignId('approved_by')->nullable()->constrained('users')->onDelete('set null');
+            $table->timestamp('approved_at')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('transactions');
+    }
+};
+
+--- FILE: app/Models/User.php ---
+<?php
+
+namespace App\Models;
+
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
+
+class User extends Authenticatable
+{
+    use HasApiTokens, HasFactory, Notifiable;
+
+    protected $fillable = [
+        'name', 'email', 'phone', 'google_id', 'password',
+        'balance', 'is_admin', 'is_active', 'email_verified_at',
+    ];
+
+    protected $hidden = ['password', 'remember_token'];
+
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+        'balance' => 'decimal:2',
+        'is_admin' => 'boolean',
+        'is_active' => 'boolean',
+    ];
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
+    public function topupTransactions()
+    {
+        return $this->hasMany(Transaction::class)->where('type', 'topup');
+    }
+
+    public function getFormattedBalanceAttribute(): string
+    {
+        return 'Rp ' . number_format($this->balance, 0, ',', '.');
+    }
+
+    public function addBalance(float $amount): void
+    {
+        $this->increment('balance', $amount);
+    }
+
+    public function deductBalance(float $amount): bool
+    {
+        if ($this->balance < $amount) {
+            return false;
+        }
+        $this->decrement('balance', $amount);
+        return true;
+    }
+}
+
+--- FILE: app/Models/Service.php ---
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Service extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'service_id', 'name', 'type', 'category',
+        'rate', 'custom_rate', 'min', 'max', 'is_active', 'description',
+    ];
+
+    protected $casts = [
+        'rate' => 'decimal:4',
+        'custom_rate' => 'decimal:4',
+        'min' => 'integer',
+        'max' => 'integer',
+        'is_active' => 'boolean',
+    ];
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    public function getEffectiveRateAttribute(): float
+    {
+        return $this->custom_rate ?? $this->rate;
+    }
+
+    public function calculatePrice(int $quantity): float
+    {
+        return ($quantity / 1000) * $this->effective_rate;
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+}
+
+--- FILE: app/Models/Order.php ---
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Order extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'user_id', 'service_id', 'link', 'quantity',
+        'price', 'status', 'api_order_id', 'start_count', 'remains', 'notes',
+    ];
+
+    protected $casts = [
+        'price' => 'decimal:2',
+        'quantity' => 'integer',
+        'start_count' => 'integer',
+        'remains' => 'integer',
+    ];
+
+    const STATUS_PENDING = 'pending';
+    const STATUS_PROCESSING = 'processing';
+    const STATUS_IN_PROGRESS = 'in_progress';
+    const STATUS_COMPLETED = 'completed';
+    const STATUS_PARTIAL = 'partial';
+    const STATUS_CANCELLED = 'cancelled';
+    const STATUS_FAILED = 'failed';
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function service()
+    {
+        return $this->belongsTo(Service::class);
+    }
+
+    public function getStatusBadgeAttribute(): string
+    {
+        return match ($this->status) {
+            'pending' => 'warning',
+            'processing' => 'info',
+            'in_progress' => 'primary',
+            'completed' => 'success',
+            'partial' => 'secondary',
+            'cancelled' => 'danger',
+            'failed' => 'danger',
+            default => 'secondary',
+        };
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status) {
+            'pending' => 'Menunggu',
+            'processing' => 'Diproses',
+            'in_progress' => 'Berjalan',
+            'completed' => 'Selesai',
+            'partial' => 'Parsial',
+            'cancelled' => 'Dibatalkan',
+            'failed' => 'Gagal',
+            default => ucfirst($this->status),
+        };
+    }
+}
+
+--- FILE: app/Models/Transaction.php ---
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Transaction extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'user_id', 'amount', 'type', 'reference',
+        'status', 'payment_proof', 'notes', 'approved_by', 'approved_at',
+    ];
+
+    protected $casts = [
+        'amount' => 'decimal:2',
+        'approved_at' => 'datetime',
+    ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function approvedBy()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function getStatusBadgeAttribute(): string
+    {
+        return match ($this->status) {
+            'pending' => 'warning',
+            'approved' => 'success',
+            'rejected' => 'danger',
+            default => 'secondary',
+        };
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status) {
+            'pending' => 'Menunggu',
+            'approved' => 'Disetujui',
+            'rejected' => 'Ditolak',
+            default => ucfirst($this->status),
+        };
+    }
+
+    public function getTypeLabelAttribute(): string
+    {
+        return match ($this->type) {
+            'topup' => 'Top Up',
+            'order_deduction' => 'Deduct Order',
+            'refund' => 'Refund',
+            default => ucfirst($this->type),
+        };
+    }
+}
+
+--- FILE: app/Http/Controllers/Auth/GoogleController.php ---
+<?php
+
+namespace App\Http\Controllers\Auth;
+
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Services\WhatsAppService;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Laravel\Socialite\Facades\Socialite;
+
+class GoogleController extends Controller
+{
+    public function redirect()
+    {
+        return Socialite::driver('google')->redirect();
+    }
+
+    public function callback()
+    {
+        try {
+            $googleUser = Socialite::driver('google')->user();
+
+            $user = User::where('google_id', $googleUser->getId())
+                ->orWhere('email', $googleUser->getEmail())
+                ->first();
+
+            if ($user) {
+                if (!$user->google_id) {
+                    $user->update(['google_id' => $googleUser->getId()]);
+                }
+            } else {
+                $user = User::create([
+                    'name' => $googleUser->getName(),
+                    'email' => $googleUser->getEmail(),
+                    'google_id' => $googleUser->getId(),
+                    'email_verified_at' => now(),
+                    'balance' => 0,
+                    'is_admin' => false,
+                    'is_active' => true,
+                ]);
+
+                try {
+                    app(WhatsAppService::class)->sendWelcomeMessage($user);
+                } catch (\Exception $e) {
+                    Log::error('WA Welcome Error: ' . $e->getMessage());
+                }
+            }
+
+            if (!$user->is_active) {
+                return redirect()->route('login')->withErrors(['email' => 'Akun Anda dinonaktifkan.']);
+            }
+
+            Auth::login($user, true);
+            return redirect()->intended(route('dashboard'));
+        } catch (\Exception $e) {
+            Log::error('Google OAuth Error: ' . $e->getMessage());
+            return redirect()->route('login')->withErrors(['email' => 'Login Google gagal. Coba lagi.']);
+        }
+    }
+}
+
+--- FILE: app/Http/Controllers/Auth/PasswordResetController.php ---
+<?php
+
+namespace App\Http\Controllers\Auth;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
+
+class PasswordResetController extends Controller
+{
+    public function showForgotForm()
+    {
+        return view('auth.forgot-password');
+    }
+
+    public function sendResetLink(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+
+        $status = Password::sendResetLink($request->only('email'));
+
+        return $status === Password::RESET_LINK_SENT
+            ? back()->with('success', __($status))
+            : back()->withErrors(['email' => __($status)]);
+    }
+
+    public function showResetForm(Request $request, string $token)
+    {
+        return view('auth.reset-password', [
+            'token' => $token,
+            'email' => $request->email,
+        ]);
+    }
+
+    public function reset(Request $request)
+    {
+        $request->validate([
+            'token' => 'required',
+            'email' => 'required|email',
+            'password' => 'required|min:8|confirmed',
+        ]);
+
+        $status = Password::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function (User $user, string $password) {
+                $user->forceFill(['password' => Hash::make($password)])
+                    ->setRememberToken(Str::random(60));
+                $user->save();
+                event(new PasswordReset($user));
+            }
+        );
+
+        return $status === Password::PASSWORD_RESET
+            ? redirect()->route('login')->with('success', 'Password berhasil direset.')
+            : back()->withErrors(['email' => [__($status)]]);
+    }
+}
+
+--- FILE: app/Http/Controllers/DashboardController.php ---
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Order;
+use App\Models\Transaction;
+use Illuminate\Support\Facades\Auth;
+
+class DashboardController extends Controller
+{
+    public function index()
+    {
+        $user = Auth::user();
+
+        $stats = [
+            'total_orders' => Order::where('user_id', $user->id)->count(),
+            'pending_orders' => Order::where('user_id', $user->id)->where('status', 'pending')->count(),
+            'completed_orders' => Order::where('user_id', $user->id)->where('status', 'completed')->count(),
+            'total_spent' => Order::where('user_id', $user->id)->sum('price'),
+        ];
+
+        $recent_orders = Order::with('service')
+            ->where('user_id', $user->id)
+            ->latest()
+            ->limit(5)
+            ->get();
+
+        $recent_topups = Transaction::where('user_id', $user->id)
+            ->where('type', 'topup')
+            ->latest()
+            ->limit(3)
+            ->get();
+
+        return view('dashboard.index', compact('stats', 'recent_orders', 'recent_topups'));
+    }
+}
+
+--- FILE: app/Http/Controllers/OrderController.php ---
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Order;
+use App\Models\Service;
+use App\Models\Transaction;
+use App\Services\EzkifyService;
+use App\Services\WhatsAppService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
+class OrderController extends Controller
+{
+    public function __construct(
+        private EzkifyService $ezkify,
+        private WhatsAppService $whatsApp
+    ) {}
+
+    public function index()
+    {
+        $categories = Service::active()->distinct()->pluck('category')->sort()->values();
+        $services = Service::active()->get()->groupBy('category');
+        return view('dashboard.order', compact('categories', 'services'));
+    }
+
+    public function getServices(Request $request)
+    {
+        $services = Service::active()
+            ->when($request->category, fn($q) => $q->where('category', $request->category))
+            ->get(['id', 'service_id', 'name', 'category', 'rate', 'custom_rate', 'min', 'max', 'description']);
+
+        return response()->json($services->map(function ($s) {
+            return [
+                'id' => $s->id,
+                'service_id' => $s->service_id,
+                'name' => $s->name,
+                'rate' => $s->effective_rate,
+                'min' => $s->min,
+                'max' => $s->max,
+                'description' => $s->description,
+            ];
+        }));
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'service_id' => 'required|exists:services,id',
+            'link' => 'required|url',
+            'quantity' => 'required|integer|min:1',
+        ]);
+
+        $service = Service::active()->findOrFail($request->service_id);
+        $user = Auth::user();
+
+        if ($request->quantity < $service->min || $request->quantity > $service->max) {
+            return back()->withErrors(['quantity' => "Quantity harus antara {$service->min} - {$service->max}"]);
+        }
+
+        $price = $service->calculatePrice($request->quantity);
+
+        if ($user->balance < $price) {
+            return back()->withErrors(['balance' => 'Saldo tidak cukup. Silakan top up terlebih dahulu.']);
+        }
+
+        DB::beginTransaction();
+        try {
+            $user->deductBalance($price);
+
+            $order = Order::create([
+                'user_id' => $user->id,
+                'service_id' => $service->id,
+                'link' => $request->link,
+                'quantity' => $request->quantity,
+                'price' => $price,
+                'status' => 'pending',
+                'notes' => $request->notes,
+            ]);
+
+            Transaction::create([
+                'user_id' => $user->id,
+                'amount' => -$price,
+                'type' => 'order_deduction',
+                'reference' => 'ORDER-' . $order->id,
+                'status' => 'approved',
+                'notes' => "Order #{$order->id} - {$service->name}",
+            ]);
+
+            $apiResult = $this->ezkify->addOrder($service->service_id, $request->link, $request->quantity);
+
+            if ($apiResult['success']) {
+                $order->update([
+                    'api_order_id' => $apiResult['order_id'],
+                    'status' => 'processing',
+                ]);
+            } else {
+                $order->update(['status' => 'failed', 'notes' => $apiResult['message'] ?? 'API Error']);
+                $user->addBalance($price);
+                Transaction::create([
+                    'user_id' => $user->id,
+                    'amount' => $price,
+                    'type' => 'refund',
+                    'reference' => 'REFUND-ORDER-' . $order->id,
+                    'status' => 'approved',
+                    'notes' => 'Refund order gagal #' . $order->id,
+                ]);
+            }
+
+            DB::commit();
+
+            try {
+                $this->whatsApp->sendOrderNotification($user, $order, $service);
+            } catch (\Exception $e) {
+                Log::error('WA Order Notif Error: ' . $e->getMessage());
+            }
+
+            return redirect()->route('history')->with('success', 'Order berhasil dibuat! Order #' . $order->id);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Order Error: ' . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan. Silakan coba lagi.');
+        }
+    }
+
+    public function history()
+    {
+        $orders = Order::with('service')
+            ->where('user_id', Auth::id())
+            ->latest()
+            ->paginate(20);
+
+        return view('dashboard.history', compact('orders'));
+    }
+}
+
+--- FILE: app/Http/Controllers/TopUpController.php ---
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Transaction;
+use App\Services\WhatsAppService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+
+class TopUpController extends Controller
+{
+    public function __construct(private WhatsAppService $whatsApp) {}
+
+    public function index()
+    {
+        $transactions = Transaction::where('user_id', Auth::id())
+            ->where('type', 'topup')
+            ->latest()
+            ->paginate(10);
+
+        return view('dashboard.topup', compact('transactions'));
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'amount' => 'required|numeric|min:10000',
+            'payment_proof' => 'required|image|mimes:jpg,jpeg,png|max:5120',
+            'reference' => 'required|string|max:100',
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        $path = $request->file('payment_proof')->store('payment_proofs', 'public');
+
+        $transaction = Transaction::create([
+            'user_id' => Auth::id(),
+            'amount' => $request->amount,
+            'type' => 'topup',
+            'reference' => $request->reference,
+            'status' => 'pending',
+            'payment_proof' => $path,
+            'notes' => $request->notes,
+        ]);
+
+        try {
+            $this->whatsApp->sendTopUpSubmitted(Auth::user(), $transaction);
+            $this->whatsApp->notifyAdminTopUp(Auth::user(), $transaction);
+        } catch (\Exception $e) {
+            Log::error('WA TopUp Notif Error: ' . $e->getMessage());
+        }
+
+        return redirect()->route('topup')->with('success', 'Permintaan top up berhasil dikirim! Tunggu konfirmasi admin.');
+    }
+}
+
+--- FILE: app/Http/Controllers/AdminController.php ---
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Order;
+use App\Models\Service;
+use App\Models\Transaction;
+use App\Models\User;
+use App\Services\EzkifyService;
+use App\Services\WhatsAppService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
+class AdminController extends Controller
+{
+    public function __construct(
+        private WhatsAppService $whatsApp,
+        private EzkifyService $ezkify
+    ) {}
+
+    public function dashboard()
+    {
+        $stats = [
+            'total_users' => User::where('is_admin', false)->count(),
+            'total_orders' => Order::count(),
+            'pending_topups' => Transaction::where('type', 'topup')->where('status', 'pending')->count(),
+            'total_revenue' => Transaction::where('type', 'topup')->where('status', 'approved')->sum('amount'),
+            'today_orders' => Order::whereDate('created_at', today())->count(),
+            'today_revenue' => Transaction::where('type', 'topup')->where('status', 'approved')->whereDate('approved_at', today())->sum('amount'),
+        ];
+
+        $recent_transactions = Transaction::with('user')->where('type', 'topup')->latest()->limit(5)->get();
+        $recent_orders = Order::with(['user', 'service'])->latest()->limit(5)->get();
+
+        return view('admin.dashboard', compact('stats', 'recent_transactions', 'recent_orders'));
+    }
+
+    public function transactions(Request $request)
+    {
+        $transactions = Transaction::with(['user', 'approvedBy'])
+            ->where('type', 'topup')
+            ->when($request->status, fn($q) => $q->where('status', $request->status))
+            ->latest()
+            ->paginate(20);
+
+        return view('admin.transactions', compact('transactions'));
+    }
+
+    public function approveTransaction(Transaction $transaction)
+    {
+        if ($transaction->status !== 'pending') {
+            return back()->with('error', 'Transaksi ini sudah diproses.');
+        }
+
+        DB::beginTransaction();
+        try {
+            $transaction->update([
+                'status' => 'approved',
+                'approved_by' => auth()->id(),
+                'approved_at' => now(),
+            ]);
+
+            $transaction->user->addBalance($transaction->amount);
+
+            DB::commit();
+
+            try {
+                $this->whatsApp->sendTopUpApproved($transaction->user, $transaction);
+            } catch (\Exception $e) {
+                Log::error('WA Approve Error: ' . $e->getMessage());
+            }
+
+            return back()->with('success', 'Top up berhasil disetujui.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal menyetujui transaksi.');
+        }
+    }
+
+    public function rejectTransaction(Request $request, Transaction $transaction)
+    {
+        $request->validate(['reject_reason' => 'required|string|max:255']);
+
+        if ($transaction->status !== 'pending') {
+            return back()->with('error', 'Transaksi ini sudah diproses.');
+        }
+
+        $transaction->update([
+            'status' => 'rejected',
+            'approved_by' => auth()->id(),
+            'approved_at' => now(),
+            'notes' => $request->reject_reason,
+        ]);
+
+        try {
+            $this->whatsApp->sendTopUpRejected($transaction->user, $transaction);
+        } catch (\Exception $e) {
+            Log::error('WA Reject Error: ' . $e->getMessage());
+        }
+
+        return back()->with('success', 'Top up berhasil ditolak.');
+    }
+
+    public function users(Request $request)
+    {
+        $users = User::where('is_admin', false)
+            ->withCount('orders')
+            ->when($request->search, fn($q) => $q->where('name', 'like', "%{$request->search}%")
+                ->orWhere('email', 'like', "%{$request->search}%"))
+            ->latest()
+            ->paginate(20);
+
+        return view('admin.users', compact('users'));
+    }
+
+    public function updateUserBalance(Request $request, User $user)
+    {
+        $request->validate([
+            'balance' => 'required|numeric|min:0',
+            'notes' => 'required|string',
+        ]);
+
+        $diff = $request->balance - $user->balance;
+
+        DB::transaction(function () use ($user, $request, $diff) {
+            $user->update(['balance' => $request->balance]);
+
+            if ($diff != 0) {
+                Transaction::create([
+                    'user_id' => $user->id,
+                    'amount' => $diff,
+                    'type' => $diff > 0 ? 'topup' : 'order_deduction',
+                    'reference' => 'ADMIN-ADJUST',
+                    'status' => 'approved',
+                    'approved_by' => auth()->id(),
+                    'approved_at' => now(),
+                    'notes' => $request->notes,
+                ]);
+            }
+        });
+
+        return back()->with('success', 'Saldo user berhasil diupdate.');
+    }
+
+    public function services(Request $request)
+    {
+        $services = Service::when($request->search, fn($q) => $q->where('name', 'like', "%{$request->search}%")
+            ->orWhere('category', 'like', "%{$request->search}%"))
+            ->when($request->category, fn($q) => $q->where('category', $request->category))
+            ->latest()
+            ->paginate(30);
+
+        $categories = Service::distinct()->pluck('category')->sort()->values();
+
+        return view('admin.services', compact('services', 'categories'));
+    }
+
+    public function toggleService(Service $service)
+    {
+        $service->update(['is_active' => !$service->is_active]);
+        return back()->with('success', 'Status service berhasil diubah.');
+    }
+
+    public function updateServiceRate(Request $request, Service $service)
+    {
+        $request->validate(['custom_rate' => 'nullable|numeric|min:0']);
+        $service->update(['custom_rate' => $request->custom_rate ?: null]);
+        return back()->with('success', 'Rate service berhasil diupdate.');
+    }
+
+    public function syncServices()
+    {
+        try {
+            $result = $this->ezkify->syncServices();
+            return back()->with('success', "Berhasil sync {$result['synced']} services.");
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal sync services: ' . $e->getMessage());
+        }
+    }
+
+    public function getBalance()
+    {
+        $balance = $this->ezkify->getBalance();
+        return back()->with('info', "Saldo Ezkify: {$balance}");
+    }
+}
+
+--- FILE: app/Http/Controllers/WebhookController.php ---
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Order;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+
+class WebhookController extends Controller
+{
+    public function handle(Request $request)
+    {
+        Log::info('Webhook received', $request->all());
+
+        $orderId = $request->input('order');
+        $status = $request->input('status');
+
+        if ($orderId && $status) {
+            $order = Order::where('api_order_id', $orderId)->first();
+            if ($order) {
+                $order->update(['status' => strtolower($status)]);
+            }
+        }
+
+        return response()->json(['success' => true]);
+    }
+}
+
+--- FILE: app/Http/Middleware/AdminMiddleware.php ---
+<?php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+class AdminMiddleware
+{
+    public function handle(Request $request, Closure $next): Response
+    {
+        if (!auth()->check() || !auth()->user()->is_admin) {
+            abort(403, 'Akses ditolak. Hanya admin yang dapat mengakses halaman ini.');
+        }
+
+        return $next($request);
+    }
+}
+
+--- FILE: app/Http/Kernel.php ---
+<?php
+
+namespace App\Http;
+
+use Illuminate\Foundation\Http\Kernel as HttpKernel;
+
+class Kernel extends HttpKernel
+{
+    protected $middleware = [
+        \App\Http\Middleware\TrustProxies::class,
+        \Illuminate\Http\Middleware\HandleCors::class,
+        \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
+        \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
+        \App\Http\Middleware\TrimStrings::class,
+        \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
+    ];
+
+    protected $middlewareGroups = [
+        'web' => [
+            \App\Http\Middleware\EncryptCookies::class,
+            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+            \Illuminate\Session\Middleware\StartSession::class,
+            \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+            \App\Http\Middleware\VerifyCsrfToken::class,
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+        ],
+        'api' => [
+            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            \Illuminate\Routing\Middleware\ThrottleRequests::class . ':api',
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+        ],
+    ];
+
+    protected $middlewareAliases = [
+        'auth' => \App\Http\Middleware\Authenticate::class,
+        'auth.basic' => \Illuminate\Auth\Middleware\AuthenticateWithBasicAuth::class,
+        'auth.session' => \Illuminate\Session\Middleware\AuthenticateSession::class,
+        'cache.headers' => \Illuminate\Http\Middleware\SetCacheHeaders::class,
+        'can' => \Illuminate\Auth\Middleware\Authorize::class,
+        'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class,
+        'password.confirm' => \Illuminate\Auth\Middleware\RequirePassword::class,
+        'signed' => \App\Http\Middleware\ValidateSignature::class,
+        'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
+        'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
+        'admin' => \App\Http\Middleware\AdminMiddleware::class,
+    ];
+}
+
+--- FILE: app/Services/WhatsAppService.php ---
+<?php
+
+namespace App\Services;
+
+use App\Models\Order;
+use App\Models\Service;
+use App\Models\Transaction;
+use App\Models\User;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+
+class WhatsAppService
+{
+    private string $token;
+    private string $apiUrl;
+    private string $adminPhone;
+
+    public function __construct()
+    {
+        $this->token = config('services.whatsapp.token');
+        $this->apiUrl = config('services.whatsapp.api_url', 'https://api.fonnte.com/send');
+        $this->adminPhone = env('ADMIN_WHATSAPP', '');
+    }
+
+    private function send(string $phone, string $message): bool
+    {
+        if (empty($phone) || empty($this->token)) {
+            return false;
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => $this->token,
+            ])->asForm()->post($this->apiUrl, [
+                'target' => $phone,
+                'message' => $message,
+                'countryCode' => '62',
+            ]);
+
+            if ($response->successful()) {
+                Log::info("WA sent to {$phone}");
+                return true;
+            }
+
+            Log::warning("WA failed: " . $response->body());
+            return false;
+        } catch (\Exception $e) {
+            Log::error("WA Error: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function sendWelcomeMessage(User $user): bool
+    {
+        if (!$user->phone) return false;
+
+        $message = "🎉 *Selamat datang di Rapi Dev SMM Panel!*\n\n";
+        $message .= "Halo *{$user->name}*,\n\n";
+        $message .= "Akun Anda berhasil dibuat.\n";
+        $message .= "📧 Email: {$user->email}\n\n";
+        $message .= "Mulai order sekarang di: " . config('app.url') . "\n";
+        $message .= "\nTerima kasih telah bergabung! 🚀";
+
+        return $this->send($user->phone, $message);
+    }
+
+    public function sendOrderNotification(User $user, Order $order, Service $service): bool
+    {
+        if (!$user->phone) return false;
+
+        $message = "📦 *Order Berhasil Dibuat!*\n\n";
+        $message .= "Halo *{$user->name}*,\n\n";
+        $message .= "Order #{$order->id} berhasil diproses.\n\n";
+        $message .= "📋 *Detail Order:*\n";
+        $message .= "- Service: {$service->name}\n";
+        $message .= "- Link: {$order->link}\n";
+        $message .= "- Quantity: " . number_format($order->quantity) . "\n";
+        $message .= "- Harga: Rp " . number_format($order->price, 0, ',', '.') . "\n";
+        $message .= "- Status: {$order->status_label}\n\n";
+        $message .= "Cek status order di: " . config('app.url') . "/history";
+
+        return $this->send($user->phone, $message);
+    }
+
+    public function sendTopUpSubmitted(User $user, Transaction $transaction): bool
+    {
+        if (!$user->phone) return false;
+
+        $message = "💳 *Permintaan Top Up Diterima!*\n\n";
+        $message .= "Halo *{$user->name}*,\n\n";
+        $message .= "Permintaan top up Anda sedang diproses.\n\n";
+        $message .= "💰 Jumlah: Rp " . number_format($transaction->amount, 0, ',', '.') . "\n";
+        $message .= "📝 Referensi: {$transaction->reference}\n";
+        $message .= "⏳ Status: Menunggu Konfirmasi\n\n";
+        $message .= "Admin akan memverifikasi pembayaran Anda segera.";
+
+        return $this->send($user->phone, $message);
+    }
+
+    public function sendTopUpApproved(User $user, Transaction $transaction): bool
+    {
+        if (!$user->phone) return false;
+
+        $message = "✅ *Top Up Disetujui!*\n\n";
+        $message .= "Halo *{$user->name}*,\n\n";
+        $message .= "Top up Anda telah disetujui.\n\n";
+        $message .= "💰 Jumlah: Rp " . number_format($transaction->amount, 0, ',', '.') . "\n";
+        $message .= "💳 Saldo Baru: Rp " . number_format($user->fresh()->balance, 0, ',', '.') . "\n\n";
+        $message .= "Silakan mulai order sekarang! 🚀\n";
+        $message .= config('app.url');
+
+        return $this->send($user->phone, $message);
+    }
+
+    public function sendTopUpRejected(User $user, Transaction $transaction): bool
+    {
+        if (!$user->phone) return false;
+
+        $message = "❌ *Top Up Ditolak*\n\n";
+        $message .= "Halo *{$user->name}*,\n\n";
+        $message .= "Maaf, top up Anda ditolak.\n\n";
+        $message .= "💰 Jumlah: Rp " . number_format($transaction->amount, 0, ',', '.') . "\n";
+        $message .= "📝 Alasan: {$transaction->notes}\n\n";
+        $message .= "Silakan hubungi admin atau coba lagi dengan bukti yang valid.";
+
+        return $this->send($user->phone, $message);
+    }
+
+    public function notifyAdminTopUp(User $user, Transaction $transaction): bool
+    {
+        if (!$this->adminPhone) return false;
+
+        $message = "🔔 *TOP UP BARU!*\n\n";
+        $message .= "User: {$user->name}\n";
+        $message .= "Email: {$user->email}\n";
+        $message .= "Jumlah: Rp " . number_format($transaction->amount, 0, ',', '.') . "\n";
+        $message .= "Referensi: {$transaction->reference}\n\n";
+        $message .= "Cek admin panel: " . config('app.url') . "/admin/transactions";
+
+        return $this->send($this->adminPhone, $message);
+    }
+
+    public function sendOrderCompleted(User $user, Order $order): bool
+    {
+        if (!$user->phone) return false;
+
+        $message = "🎉 *Order Selesai!*\n\n";
+        $message .= "Halo *{$user->name}*,\n\n";
+        $message .= "Order #{$order->id} telah selesai.\n\n";
+        $message .= "📋 *Detail:*\n";
+        $message .= "- Service: {$order->service->name}\n";
+        $message .= "- Link: {$order->link}\n";
+        $message .= "- Quantity: " . number_format($order->quantity) . "\n\n";
+        $message .= "Terima kasih telah menggunakan Rapi Dev SMM Panel! 🚀";
+
+        return $this->send($user->phone, $message);
+    }
+}
+
+--- FILE: app/Services/EzkifyService.php ---
+<?php
+
+namespace App\Services;
+
+use App\Models\Service;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+
+class EzkifyService
+{
+    private string $apiKey;
+    private string $apiUrl;
+
+    public function __construct()
+    {
+        $this->apiKey = config('services.ezkify.api_key');
+        $this->apiUrl = config('services.ezkify.api_url', 'https://ezkify.com/api/v2');
+    }
+
+    private function request(array $params): array
+    {
+        try {
+            $response = Http::timeout(30)->asForm()->post($this->apiUrl, array_merge([
+                'key' => $this->apiKey,
+            ], $params));
+
+            if ($response->successful()) {
+                $data = $response->json();
+                return $data ?? [];
+            }
+
+            Log::error("Ezkify API Error: " . $response->status() . " - " . $response->body());
+            return ['error' => 'API request failed'];
+        } catch (\Exception $e) {
+            Log::error("Ezkify Exception: " . $e->getMessage());
+            return ['error' => $e->getMessage()];
+        }
+    }
+
+    public function getServices(): array
+    {
+        return $this->request(['action' => 'services']);
+    }
+
+    public function syncServices(): array
+    {
+        $apiServices = $this->getServices();
+
+        if (isset($apiServices['error'])) {
+            throw new \Exception('Gagal mengambil services dari API: ' . $apiServices['error']);
+        }
+
+        $synced = 0;
+        foreach ($apiServices as $apiService) {
+            if (!isset($apiService['service'])) continue;
+
+            Service::updateOrCreate(
+                ['service_id' => (string) $apiService['service']],
+                [
+                    'name' => $apiService['name'] ?? 'Unknown',
+                    'type' => $apiService['type'] ?? null,
+                    'category' => $apiService['category'] ?? 'Lainnya',
+                    'rate' => (float) ($apiService['rate'] ?? 0),
+                    'min' => (int) ($apiService['min'] ?? 10),
+                    'max' => (int) ($apiService['max'] ?? 10000),
+                    'description' => $apiService['description'] ?? null,
+                ]
+            );
+            $synced++;
+        }
+
+        return ['synced' => $synced];
+    }
+
+    public function addOrder(string $serviceId, string $link, int $quantity): array
+    {
+        $result = $this->request([
+            'action' => 'add',
+            'service' => $serviceId,
+            'link' => $link,
+            'quantity' => $quantity,
+        ]);
+
+        if (isset($result['order'])) {
+            return ['success' => true, 'order_id' => (string) $result['order']];
+        }
+
+        return ['success' => false, 'message' => $result['error'] ?? 'Unknown error'];
+    }
+
+    public function getOrderStatus(string $orderId): array
+    {
+        $result = $this->request([
+            'action' => 'status',
+            'order' => $orderId,
+        ]);
+
+        if (isset($result['status'])) {
+            return [
+                'success' => true,
+                'status' => strtolower($result['status']),
+                'start_count' => $result['start_count'] ?? null,
+                'remains' => $result['remains'] ?? null,
+            ];
+        }
+
+        return ['success' => false, 'message' => $result['error'] ?? 'Unknown error'];
+    }
+
+    public function getMultipleOrderStatus(array $orderIds): array
+    {
+        $result = $this->request([
+            'action' => 'status',
+            'orders' => implode(',', $orderIds),
+        ]);
+
+        return $result;
+    }
+
+    public function getBalance(): string
+    {
+        $result = $this->request(['action' => 'balance']);
+        return isset($result['balance']) ? 'USD ' . $result['balance'] : 'N/A';
+    }
+
+    public function cancelOrder(string $orderId): array
+    {
+        $result = $this->request([
+            'action' => 'cancel',
+            'orders' => $orderId,
+        ]);
+
+        return ['success' => !isset($result['error']), 'result' => $result];
+    }
+}
+
+--- FILE: app/Console/Commands/SyncServices.php ---
+<?php
+
+namespace App\Console\Commands;
+
+use App\Services\EzkifyService;
+use Illuminate\Console\Command;
+
+class SyncServices extends Command
+{
+    protected $signature = 'smm:sync-services';
+    protected $description = 'Sync services dari Ezkify API';
+
+    public function handle(EzkifyService $ezkify): int
+    {
+        $this->info('Syncing services dari Ezkify...');
+
+        try {
+            $result = $ezkify->syncServices();
+            $this->info("✅ Berhasil sync {$result['synced']} services.");
+            return Command::SUCCESS;
+        } catch (\Exception $e) {
+            $this->error('❌ Gagal sync: ' . $e->getMessage());
+            return Command::FAILURE;
+        }
+    }
+}
+
+--- FILE: app/Console/Commands/CheckOrderStatus.php ---
+<?php
+
+namespace App\Console\Commands;
+
+use App\Models\Order;
+use App\Services\EzkifyService;
+use App\Services\WhatsAppService;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
+
+class CheckOrderStatus extends Command
+{
+    protected $signature = 'smm:check-orders';
+    protected $description = 'Check dan update status orders dari Ezkify API';
+
+    public function handle(EzkifyService $ezkify, WhatsAppService $whatsApp): int
+    {
+        $this->info('Checking order statuses...');
+
+        $orders = Order::whereNotNull('api_order_id')
+            ->whereNotIn('status', ['completed', 'cancelled', 'failed'])
+            ->with('user')
+            ->get();
+
+        if ($orders->isEmpty()) {
+            $this->info('Tidak ada order yang perlu dicek.');
+            return Command::SUCCESS;
+        }
+
+        $this->info("Checking {$orders->count()} orders...");
+        $updated = 0;
+
+        foreach ($orders as $order) {
+            try {
+                $result = $ezkify->getOrderStatus($order->api_order_id);
+
+                if (!$result['success']) continue;
+
+                $newStatus = $this->mapStatus($result['status']);
+                $wasCompleted = $order->status !== 'completed' && $newStatus === 'completed';
+
+                $updateData = ['status' => $newStatus];
+                if (isset($result['start_count'])) $updateData['start_count'] = $result['start_count'];
+                if (isset($result['remains'])) $updateData['remains'] = $result['remains'];
+
+                $order->update($updateData);
+                $updated++;
+
+                if ($wasCompleted && $order->user->phone) {
+                    try {
+                        $whatsApp->sendOrderCompleted($order->user, $order);
+                    } catch (\Exception $e) {
+                        Log::error('WA Completed Error: ' . $e->getMessage());
+                    }
+                }
+
+                $this->line("Order #{$order->id}: {$order->status} → {$newStatus}");
+            } catch (\Exception $e) {
+                Log::error("CheckOrder Error #{$order->id}: " . $e->getMessage());
+            }
+        }
+
+        $this->info("✅ Updated {$updated} orders.");
+        return Command::SUCCESS;
+    }
+
+    private function mapStatus(string $status): string
+    {
+        return match (strtolower($status)) {
+            'pending' => 'pending',
+            'processing' => 'processing',
+            'in progress', 'inprogress' => 'in_progress',
+            'completed' => 'completed',
+            'partial' => 'partial',
+            'cancelled', 'canceled' => 'cancelled',
+            'fail', 'failed' => 'failed',
+            default => 'processing',
+        };
+    }
+}
+
+--- FILE: app/Console/Kernel.php ---
+<?php
+
+namespace App\Console;
+
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
+
+class Kernel extends ConsoleKernel
+{
+    protected function schedule(Schedule $schedule): void
+    {
+        $schedule->command('smm:check-orders')->everyFiveMinutes();
+        $schedule->command('smm:sync-services')->daily();
+    }
+
+    protected function commands(): void
+    {
+        $this->load(__DIR__ . '/Commands');
+        require base_path('routes/console.php');
+    }
+}
+
+--- FILE: routes/web.php ---
+<?php
+
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\Auth\GoogleController;
+use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\TopUpController;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
+
+Route::middleware('guest')->group(function () {
+    Route::get('/login', fn() => view('auth.login'))->name('login');
+    Route::post('/login', function (\Illuminate\Http\Request $request) {
+        $credentials = $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
+
+        if (Auth::attempt($credentials, $request->boolean('remember'))) {
+            $request->session()->regenerate();
+            if (Auth::user()->is_admin) {
+                return redirect()->route('admin.dashboard');
+            }
+            return redirect()->intended(route('dashboard'));
+        }
+
+        return back()->withErrors(['email' => 'Email atau password salah.'])->onlyInput('email');
+    })->name('login.submit');
+
+    Route::get('/register', fn() => view('auth.register'))->name('register');
+    Route::post('/register', function (\Illuminate\Http\Request $request) {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users',
+            'phone' => 'nullable|string|max:20',
+            'password' => 'required|min:8|confirmed',
+        ]);
+
+        $user = \App\Models\User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'phone' => $request->phone,
+            'password' => bcrypt($request->password),
+        ]);
+
+        try {
+            app(\App\Services\WhatsAppService::class)->sendWelcomeMessage($user);
+        } catch (\Exception $e) {}
+
+        Auth::login($user);
+        return redirect()->route('dashboard');
+    })->name('register.submit');
+
+    Route::get('/forgot-password', [PasswordResetController::class, 'showForgotForm'])->name('password.request');
+    Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
+    Route::get('/reset-password/{token}', [PasswordResetController::class, 'showResetForm'])->name('password.reset');
+    Route::post('/reset-password', [PasswordResetController::class, 'reset'])->name('password.update');
+
+    Route::get('/auth/google', [GoogleController::class, 'redirect'])->name('google.redirect');
+    Route::get('/auth/google/callback', [GoogleController::class, 'callback'])->name('google.callback');
+});
+
+Route::middleware('auth')->group(function () {
+    Route::post('/logout', function (\Illuminate\Http\Request $request) {
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        return redirect()->route('login');
+    })->name('logout');
+
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index']);
+
+    Route::get('/order', [OrderController::class, 'index'])->name('order');
+    Route::post('/order', [OrderController::class, 'store'])->name('order.store');
+    Route::get('/order/services', [OrderController::class, 'getServices'])->name('order.services');
+    Route::get('/history', [OrderController::class, 'history'])->name('history');
+
+    Route::get('/topup', [TopUpController::class, 'index'])->name('topup');
+    Route::post('/topup', [TopUpController::class, 'store'])->name('topup.store');
+});
+
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
+    Route::get('/transactions', [AdminController::class, 'transactions'])->name('transactions');
+    Route::post('/transactions/{transaction}/approve', [AdminController::class, 'approveTransaction'])->name('transactions.approve');
+    Route::post('/transactions/{transaction}/reject', [AdminController::class, 'rejectTransaction'])->name('transactions.reject');
+    Route::get('/users', [AdminController::class, 'users'])->name('users');
+    Route::put('/users/{user}/balance', [AdminController::class, 'updateUserBalance'])->name('users.balance');
+    Route::get('/services', [AdminController::class, 'services'])->name('services');
+    Route::post('/services/{service}/toggle', [AdminController::class, 'toggleService'])->name('services.toggle');
+    Route::put('/services/{service}/rate', [AdminController::class, 'updateServiceRate'])->name('services.rate');
+    Route::post('/services/sync', [AdminController::class, 'syncServices'])->name('services.sync');
+    Route::get('/balance', [AdminController::class, 'getBalance'])->name('balance');
+});
+
+--- FILE: routes/api.php ---
+<?php
+
+use App\Http\Controllers\WebhookController;
+use Illuminate\Support\Facades\Route;
+
+Route::post('/webhook/order', [WebhookController::class, 'handle'])->name('webhook.order');
+
+--- FILE: resources/views/layouts/app.blade.php ---
+<!DOCTYPE html>
+<html lang="id" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>@yield('title', 'Dashboard') — Rapi Dev SMM Panel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="{{ asset('css/custom.css') }}" rel="stylesheet">
+    @stack('styles')
+</head>
+<body>
+    <div class="wrapper">
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-brand">
+                <a href="{{ route('dashboard') }}" class="d-flex align-items-center gap-2 text-decoration-none">
+                    <div class="brand-icon">
+                        <i class="bi bi-lightning-charge-fill"></i>
+                    </div>
+                    <span class="brand-name">Rapi<span class="text-accent">Dev</span></span>
+                </a>
+            </div>
+
+            <div class="sidebar-user">
+                <div class="user-avatar">
+                    {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+                </div>
+                <div class="user-info">
+                    <div class="user-name">{{ auth()->user()->name }}</div>
+                    <div class="user-balance">Rp {{ number_format(auth()->user()->balance, 0, ',', '.') }}</div>
+                </div>
+            </div>
+
+            <ul class="sidebar-nav">
+                @if(auth()->user()->is_admin)
+                    <li class="nav-label">Admin Panel</li>
+                    <li class="nav-item {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
+                        <a href="{{ route('admin.dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+                    </li>
+                    <li class="nav-item {{ request()->routeIs('admin.transactions') ? 'active' : '' }}">
+                        <a href="{{ route('admin.transactions') }}">
+                            <i class="bi bi-cash-stack"></i> Top Up
+                            @php $pendingCount = \App\Models\Transaction::where('type','topup')->where('status','pending')->count() @endphp
+                            @if($pendingCount > 0)
+                                <span class="badge-count">{{ $pendingCount }}</span>
+                            @endif
+                        </a>
+                    </li>
+                    <li class="nav-item {{ request()->routeIs('admin.users') ? 'active' : '' }}">
+                        <a href="{{ route('admin.users') }}"><i class="bi bi-people"></i> Users</a>
+                    </li>
+                    <li class="nav-item {{ request()->routeIs('admin.services') ? 'active' : '' }}">
+                        <a href="{{ route('admin.services') }}"><i class="bi bi-grid-3x3-gap"></i> Services</a>
+                    </li>
+                @else
+                    <li class="nav-label">Menu</li>
+                    <li class="nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                        <a href="{{ route('dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+                    </li>
+                    <li class="nav-item {{ request()->routeIs('order') ? 'active' : '' }}">
+                        <a href="{{ route('order') }}"><i class="bi bi-cart-plus"></i> Order Baru</a>
+                    </li>
+                    <li class="nav-item {{ request()->routeIs('history') ? 'active' : '' }}">
+                        <a href="{{ route('history') }}"><i class="bi bi-clock-history"></i> Riwayat Order</a>
+                    </li>
+                    <li class="nav-item {{ request()->routeIs('topup') ? 'active' : '' }}">
+                        <a href="{{ route('topup') }}"><i class="bi bi-wallet2"></i> Top Up</a>
+                    </li>
+                @endif
+            </ul>
+
+            <div class="sidebar-footer">
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="btn-logout">
+                        <i class="bi bi-box-arrow-left"></i> Logout
+                    </button>
+                </form>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="main-content" id="mainContent">
+            <header class="topbar">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="bi bi-list"></i>
+                </button>
+                <div class="topbar-title">@yield('title', 'Dashboard')</div>
+                <div class="topbar-actions">
+                    @if(!auth()->user()->is_admin)
+                    <a href="{{ route('topup') }}" class="btn btn-sm btn-accent">
+                        <i class="bi bi-plus-circle me-1"></i>Top Up
+                    </a>
+                    @endif
+                </div>
+            </header>
+
+            <div class="content-area">
+                @if(session('success'))
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="bi bi-check-circle me-2"></i>{{ session('success') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                @endif
+                @if(session('error'))
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle me-2"></i>{{ session('error') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                @endif
+                @if(session('info'))
+                    <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        <i class="bi bi-info-circle me-2"></i>{{ session('info') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                @endif
+                @if($errors->any())
+                    <div class="alert alert-danger alert-dismissible fade show">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        @foreach($errors->all() as $error)
+                            {{ $error }}<br>
+                        @endforeach
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                @endif
+
+                @yield('content')
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ asset('js/custom.js') }}"></script>
+    @stack('scripts')
+</body>
+</html>
+
+--- FILE: resources/views/auth/login.blade.php ---
+<!DOCTYPE html>
+<html lang="id" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — Rapi Dev SMM Panel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="{{ asset('css/custom.css') }}" rel="stylesheet">
+</head>
+<body class="auth-body">
+    <div class="auth-bg"></div>
+    <div class="auth-orb auth-orb-1"></div>
+    <div class="auth-orb auth-orb-2"></div>
+
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-brand">
+                <div class="brand-icon large">
+                    <i class="bi bi-lightning-charge-fill"></i>
+                </div>
+                <h2 class="auth-title">Rapi<span class="text-accent">Dev</span> SMM</h2>
+                <p class="auth-subtitle">Masuk ke akun Anda</p>
+            </div>
+
+            @if($errors->any())
+                <div class="alert alert-danger">
+                    @foreach($errors->all() as $error)
+                        <div><i class="bi bi-exclamation-circle me-1"></i>{{ $error }}</div>
+                    @endforeach
+                </div>
+            @endif
+            @if(session('success'))
+                <div class="alert alert-success"><i class="bi bi-check-circle me-1"></i>{{ session('success') }}</div>
+            @endif
+
+            <form method="POST" action="{{ route('login.submit') }}">
+                @csrf
+                <div class="form-group mb-3">
+                    <label class="form-label">Email</label>
+                    <div class="input-group-custom">
+                        <i class="bi bi-envelope input-icon"></i>
+                        <input type="email" name="email" class="form-control form-control-dark" value="{{ old('email') }}" placeholder="email@contoh.com" required autofocus>
+                    </div>
+                </div>
+                <div class="form-group mb-3">
+                    <label class="form-label d-flex justify-content-between">
+                        <span>Password</span>
+                        <a href="{{ route('password.request') }}" class="text-accent small">Lupa password?</a>
+                    </label>
+                    <div class="input-group-custom">
+                        <i class="bi bi-lock input-icon"></i>
+                        <input type="password" name="password" class="form-control form-control-dark" placeholder="••••••••" required>
+                    </div>
+                </div>
+                <div class="form-check mb-4">
+                    <input class="form-check-input" type="checkbox" name="remember" id="remember">
+                    <label class="form-check-label small" for="remember">Ingat saya</label>
+                </div>
+                <button type="submit" class="btn btn-accent w-100 mb-3">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Masuk
+                </button>
+            </form>
+
+            <div class="divider"><span>atau</span></div>
+
+            <a href="{{ route('google.redirect') }}" class="btn btn-google w-100 mb-4">
+                <svg width="18" height="18" viewBox="0 0 24 24" class="me-2">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Masuk dengan Google
+            </a>
+
+            <p class="text-center text-muted small">
+                Belum punya akun? <a href="{{ route('register') }}" class="text-accent">Daftar sekarang</a>
+            </p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+
+--- FILE: resources/views/auth/register.blade.php ---
+<!DOCTYPE html>
+<html lang="id" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daftar — Rapi Dev SMM Panel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="{{ asset('css/custom.css') }}" rel="stylesheet">
+</head>
+<body class="auth-body">
+    <div class="auth-bg"></div>
+    <div class="auth-orb auth-orb-1"></div>
+    <div class="auth-orb auth-orb-2"></div>
+
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-brand">
+                <div class="brand-icon large">
+                    <i class="bi bi-lightning-charge-fill"></i>
+                </div>
+                <h2 class="auth-title">Buat Akun</h2>
+                <p class="auth-subtitle">Daftar di Rapi Dev SMM Panel</p>
+            </div>
+
+            @if($errors->any())
+                <div class="alert alert-danger">
+                    @foreach($errors->all() as $error)
+                        <div><i class="bi bi-exclamation-circle me-1"></i>{{ $error }}</div>
+                    @endforeach
+                </div>
+            @endif
+
+            <form method="POST" action="{{ route('register.submit') }}">
+                @csrf
+                <div class="form-group mb-3">
+                    <label class="form-label">Nama Lengkap</label>
+                    <div class="input-group-custom">
+                        <i class="bi bi-person input-icon"></i>
+                        <input type="text" name="name" class="form-control form-control-dark" value="{{ old('name') }}" placeholder="John Doe" required autofocus>
+                    </div>
+                </div>
+                <div class="form-group mb-3">
+                    <label class="form-label">Email</label>
+                    <div class="input-group-custom">
+                        <i class="bi bi-envelope input-icon"></i>
+                        <input type="email" name="email" class="form-control form-control-dark" value="{{ old('email') }}" placeholder="email@contoh.com" required>
+                    </div>
+                </div>
+                <div class="form-group mb-3">
+                    <label class="form-label">No. WhatsApp <small class="text-muted">(untuk notifikasi)</small></label>
+                    <div class="input-group-custom">
+                        <i class="bi bi-whatsapp input-icon"></i>
+                        <input type="text" name="phone" class="form-control form-control-dark" value="{{ old('phone') }}" placeholder="628xxxxxxxxxx">
+                    </div>
+                </div>
+                <div class="form-group mb-3">
+                    <label class="form-label">Password</label>
+                    <div class="input-group-custom">
+                        <i class="bi bi-lock input-icon"></i>
+                        <input type="password" name="password" class="form-control form-control-dark" placeholder="Min. 8 karakter" required>
+                    </div>
+                </div>
+                <div class="form-group mb-4">
+                    <label class="form-label">Konfirmasi Password</label>
+                    <div class="input-group-custom">
+                        <i class="bi bi-lock-fill input-icon"></i>
+                        <input type="password" name="password_confirmation" class="form-control form-control-dark" placeholder="Ulangi password" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-accent w-100 mb-3">
+                    <i class="bi bi-person-plus me-2"></i>Daftar Sekarang
+                </button>
+            </form>
+
+            <div class="divider"><span>atau</span></div>
+
+            <a href="{{ route('google.redirect') }}" class="btn btn-google w-100 mb-4">
+                <svg width="18" height="18" viewBox="0 0 24 24" class="me-2">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Daftar dengan Google
+            </a>
+
+            <p class="text-center text-muted small">
+                Sudah punya akun? <a href="{{ route('login') }}" class="text-accent">Masuk di sini</a>
+            </p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+
+--- FILE: resources/views/auth/forgot-password.blade.php ---
+<!DOCTYPE html>
+<html lang="id" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lupa Password — Rapi Dev SMM Panel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="{{ asset('css/custom.css') }}" rel="stylesheet">
+</head>
+<body class="auth-body">
+    <div class="auth-bg"></div>
+    <div class="auth-orb auth-orb-1"></div>
+    <div class="auth-orb auth-orb-2"></div>
+
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-brand">
+                <div class="brand-icon large">
+                    <i class="bi bi-key-fill"></i>
+                </div>
+                <h2 class="auth-title">Lupa Password</h2>
+                <p class="auth-subtitle">Masukkan email untuk reset password</p>
+            </div>
+
+            @if(session('success'))
+                <div class="alert alert-success"><i class="bi bi-check-circle me-1"></i>{{ session('success') }}</div>
+            @endif
+            @if($errors->any())
+                <div class="alert alert-danger">
+                    @foreach($errors->all() as $error)
+                        <div><i class="bi bi-exclamation-circle me-1"></i>{{ $error }}</div>
+                    @endforeach
+                </div>
+            @endif
+
+            <form method="POST" action="{{ route('password.email') }}">
+                @csrf
+                <div class="form-group mb-4">
+                    <label class="form-label">Email</label>
+                    <div class="input-group-custom">
+                        <i class="bi bi-envelope input-icon"></i>
+                        <input type="email" name="email" class="form-control form-control-dark" value="{{ old('email') }}" placeholder="email@contoh.com" required autofocus>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-accent w-100 mb-3">
+                    <i class="bi bi-send me-2"></i>Kirim Link Reset
+                </button>
+            </form>
+
+            <p class="text-center text-muted small">
+                Ingat password? <a href="{{ route('login') }}" class="text-accent">Kembali ke login</a>
+            </p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+
+--- FILE: resources/views/dashboard/index.blade.php ---
+@extends('layouts.app')
+@section('title', 'Dashboard')
+
+@section('content')
+<div class="row g-4 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-accent-soft">
+                <i class="bi bi-wallet2 text-accent"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-label">Saldo</div>
+                <div class="stat-value">Rp {{ number_format(auth()->user()->balance, 0, ',', '.') }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-info-soft">
+                <i class="bi bi-cart-check text-info"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-label">Total Order</div>
+                <div class="stat-value">{{ number_format($stats['total_orders']) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-warning-soft">
+                <i class="bi bi-hourglass-split text-warning"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-label">Pending</div>
+                <div class="stat-value">{{ number_format($stats['pending_orders']) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-success-soft">
+                <i class="bi bi-check-circle text-success"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-label">Selesai</div>
+                <div class="stat-value">{{ number_format($stats['completed_orders']) }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="panel-card">
+            <div class="panel-card-header">
+                <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Order Terbaru</h6>
+                <a href="{{ route('history') }}" class="btn btn-sm btn-outline-accent">Lihat Semua</a>
+            </div>
+            <div class="panel-card-body p-0">
+                @if($recent_orders->isEmpty())
+                    <div class="empty-state py-5">
+                        <i class="bi bi-inbox display-4 text-muted"></i>
+                        <p class="text-muted mt-2">Belum ada order</p>
+                        <a href="{{ route('order') }}" class="btn btn-accent btn-sm">Buat Order Pertama</a>
+                    </div>
+                @else
+                    <div class="table-responsive">
+                        <table class="table table-dark-custom">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Service</th>
+                                    <th>Link</th>
+                                    <th>Qty</th>
+                                    <th>Harga</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($recent_orders as $order)
+                                <tr>
+                                    <td>#{{ $order->id }}</td>
+                                    <td class="text-truncate-cell">{{ $order->service->name }}</td>
+                                    <td class="text-truncate-cell">
+                                        <a href="{{ $order->link }}" target="_blank" class="text-accent small">{{ $order->link }}</a>
+                                    </td>
+                                    <td>{{ number_format($order->quantity) }}</td>
+                                    <td>Rp {{ number_format($order->price, 0, ',', '.') }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ $order->status_badge }}">{{ $order->status_label }}</span>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="panel-card mb-4">
+            <div class="panel-card-header">
+                <h6 class="mb-0"><i class="bi bi-plus-circle me-2"></i>Aksi Cepat</h6>
+            </div>
+            <div class="panel-card-body">
+                <a href="{{ route('order') }}" class="btn btn-accent w-100 mb-2">
+                    <i class="bi bi-cart-plus me-2"></i>Buat Order Baru
+                </a>
+                <a href="{{ route('topup') }}" class="btn btn-outline-accent w-100">
+                    <i class="bi bi-wallet2 me-2"></i>Top Up Saldo
+                </a>
+            </div>
+        </div>
+
+        <div class="panel-card">
+            <div class="panel-card-header">
+                <h6 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Top Up Terbaru</h6>
+            </div>
+            <div class="panel-card-body p-0">
+                @if($recent_topups->isEmpty())
+                    <div class="empty-state py-4">
+                        <p class="text-muted small mb-0">Belum ada top up</p>
+                    </div>
+                @else
+                    @foreach($recent_topups as $topup)
+                    <div class="topup-item">
+                        <div>
+                            <div class="fw-500">Rp {{ number_format($topup->amount, 0, ',', '.') }}</div>
+                            <div class="small text-muted">{{ $topup->created_at->diffForHumans() }}</div>
+                        </div>
+                        <span class="badge bg-{{ $topup->status_badge }}">{{ $topup->status_label }}</span>
+                    </div>
+                    @endforeach
+                @endif
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
+
+--- FILE: resources/views/dashboard/topup.blade.php ---
+@extends('layouts.app')
+@section('title', 'Top Up Saldo')
+
+@section('content')
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="panel-card">
+            <div class="panel-card-header">
+                <h6 class="mb-0"><i class="bi bi-wallet2 me-2"></i>Form Top Up</h6>
+            </div>
+            <div class="panel-card-body">
+                <div class="balance-display mb-4">
+                    <div class="balance-label">Saldo Saat Ini</div>
+                    <div class="balance-amount">Rp {{ number_format(auth()->user()->balance, 0, ',', '.') }}</div>
+                </div>
+
+                <div class="payment-info mb-4">
+                    <div class="payment-info-title"><i class="bi bi-bank me-1"></i>Info Pembayaran</div>
+                    <div class="payment-info-body">
+                        <div class="payment-row">
+                            <span>Bank</span>
+                            <strong>BCA</strong>
+                        </div>
+                        <div class="payment-row">
+                            <span>No. Rekening</span>
+                            <strong>1234567890</strong>
+                        </div>
+                        <div class="payment-row">
+                            <span>Atas Nama</span>
+                            <strong>Rapi Dev</strong>
+                        </div>
+                    </div>
+                    <div class="alert alert-warning mt-3 mb-0 small">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Minimal top up <strong>Rp 10.000</strong>. Kirim bukti transfer setelah transfer.
+                    </div>
+                </div>
+
+                <form method="POST" action="{{ route('topup.store') }}" enctype="multipart/form-data" id="topupForm">
+                    @csrf
+                    <div class="mb-3">
+                        <label class="form-label">Jumlah Top Up (Rp)</label>
+                        <div class="input-group-custom">
+                            <i class="bi bi-currency-dollar input-icon"></i>
+                            <input type="number" name="amount" class="form-control form-control-dark" placeholder="50000" min="10000" step="1000" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nomor Referensi / Kode Transfer</label>
+                        <div class="input-group-custom">
+                            <i class="bi bi-hash input-icon"></i>
+                            <input type="text" name="reference" class="form-control form-control-dark" placeholder="Contoh: 1234567890" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Bukti Transfer</label>
+                        <div class="file-upload-area" id="fileUploadArea">
+                            <input type="file" name="payment_proof" id="paymentProof" accept="image/*" required style="display:none">
+                            <div class="file-upload-content" id="fileUploadContent">
+                                <i class="bi bi-cloud-upload display-5 text-muted"></i>
+                                <p class="text-muted mt-2 mb-1">Klik atau drag foto bukti transfer</p>
+                                <small class="text-muted">JPG, JPEG, PNG — Max 5MB</small>
+                            </div>
+                            <div class="file-preview d-none" id="filePreview">
+                                <img id="previewImg" class="img-preview" src="" alt="Preview">
+                                <div class="preview-overlay">
+                                    <span id="fileName" class="small"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Catatan (Opsional)</label>
+                        <textarea name="notes" class="form-control form-control-dark" rows="2" placeholder="Catatan tambahan..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-accent w-100">
+                        <i class="bi bi-send me-2"></i>Kirim Permintaan Top Up
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="panel-card">
+            <div class="panel-card-header">
+                <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Riwayat Top Up</h6>
+            </div>
+            <div class="panel-card-body p-0">
+                @if($transactions->isEmpty())
+                    <div class="empty-state py-5">
+                        <i class="bi bi-inbox display-4 text-muted"></i>
+                        <p class="text-muted mt-2">Belum ada riwayat top up</p>
+                    </div>
+                @else
+                    <div class="table-responsive">
+                        <table class="table table-dark-custom">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Jumlah</th>
+                                    <th>Referensi</th>
+                                    <th>Status</th>
+                                    <th>Tanggal</th>
+                                    <th>Bukti</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($transactions as $tx)
+                                <tr>
+                                    <td>#{{ $tx->id }}</td>
+                                    <td class="fw-500 text-accent">Rp {{ number_format($tx->amount, 0, ',', '.') }}</td>
+                                    <td>{{ $tx->reference }}</td>
+                                    <td><span class="badge bg-{{ $tx->status_badge }}">{{ $tx->status_label }}</span></td>
+                                    <td class="small text-muted">{{ $tx->created_at->format('d/m/Y H:i') }}</td>
+                                    <td>
+                                        @if($tx->payment_proof)
+                                            <a href="{{ asset('storage/'.$tx->payment_proof) }}" target="_blank" class="btn btn-sm btn-outline-accent">
+                                                <i class="bi bi-image"></i>
+                                            </a>
+                                        @endif
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="p-3">{{ $transactions->links() }}</div>
+                @endif
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
+
+@push('scripts')
+<script>
+const fileUploadArea = document.getElementById('fileUploadArea');
+const paymentProof = document.getElementById('paymentProof');
+const fileUploadContent = document.getElementById('fileUploadContent');
+const filePreview = document.getElementById('filePreview');
+const previewImg = document.getElementById('previewImg');
+const fileName = document.getElementById('fileName');
+
+fileUploadArea.addEventListener('click', () => paymentProof.click());
+
+fileUploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    fileUploadArea.classList.add('drag-over');
+});
+
+fileUploadArea.addEventListener('dragleave', () => fileUploadArea.classList.remove('drag-over'));
+
+fileUploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    fileUploadArea.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+});
+
+paymentProof.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) handleFile(file);
+});
+
+function handleFile(file) {
+    if (file.size > 5 * 1024 * 1024) {
+        alert('File terlalu besar. Max 5MB.');
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        previewImg.src = e.target.result;
+        fileName.textContent = file.name;
+        fileUploadContent.classList.add('d-none');
+        filePreview.classList.remove('d-none');
+    };
+    reader.readAsDataURL(file);
+
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    paymentProof.files = dataTransfer.files;
+}
+</script>
+@endpush
+
+--- FILE: resources/views/dashboard/order.blade.php ---
+@extends('layouts.app')
+@section('title', 'Order Baru')
+
+@section('content')
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="panel-card">
+            <div class="panel-card-header">
+                <h6 class="mb-0"><i class="bi bi-cart-plus me-2"></i>Buat Order Baru</h6>
+            </div>
+            <div class="panel-card-body">
+                <form method="POST" action="{{ route('order.store') }}" id="orderForm">
+                    @csrf
+                    <div class="mb-3">
+                        <label class="form-label">Kategori</label>
+                        <select id="categorySelect" class="form-select form-control-dark">
+                            <option value="">-- Pilih Kategori --</option>
+                            @foreach($categories as $cat)
+                                <option value="{{ $cat }}">{{ $cat }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Service</label>
+                        <select name="service_id" id="serviceSelect" class="form-select form-control-dark" required disabled>
+                            <option value="">-- Pilih Service --</option>
+                        </select>
+                    </div>
+
+                    <div id="serviceInfo" class="service-info-box d-none mb-3">
+                        <div class="service-info-row">
+                            <span><i class="bi bi-tag me-1"></i>Rate</span>
+                            <strong id="infoRate">-</strong>
+                        </div>
+                        <div class="service-info-row">
+                            <span><i class="bi bi-arrow-down-up me-1"></i>Min - Max</span>
+                            <strong id="infoMinMax">-</strong>
+                        </div>
+                        <div id="infoDesc" class="service-info-desc d-none"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Link / Target</label>
+                        <div class="input-group-custom">
+                            <i class="bi bi-link-45deg input-icon"></i>
+                            <input type="url" name="link" id="linkInput" class="form-control form-control-dark" placeholder="https://instagram.com/username" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Quantity</label>
+                        <div class="input-group-custom">
+                            <i class="bi bi-123 input-icon"></i>
+                            <input type="number" name="quantity" id="quantityInput" class="form-control form-control-dark" placeholder="1000" min="1" required>
+                        </div>
+                        <small class="text-muted" id="quantityHint"></small>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Catatan (Opsional)</label>
+                        <textarea name="notes" class="form-control form-control-dark" rows="2"></textarea>
+                    </div>
+
+                    <div class="price-preview mb-4 d-none" id="pricePreview">
+                        <div class="price-row">
+                            <span>Estimasi Harga</span>
+                            <strong class="text-accent" id="estimatedPrice">Rp 0</strong>
+                        </div>
+                        <div class="price-row">
+                            <span>Saldo Anda</span>
+                            <strong id="userBalance">Rp {{ number_format(auth()->user()->balance, 0, ',', '.') }}</strong>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-accent w-100" id="submitBtn" disabled>
+                        <i class="bi bi-cart-check me-2"></i>Buat Order
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="panel-card">
+            <div class="panel-card-header">
+                <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Informasi</h6>
+            </div>
+            <div class="panel-card-body">
+                <div class="info-item">
+                    <i class="bi bi-wallet2 text-accent me-2"></i>
+                    <span>Saldo: <strong class="text-accent">Rp {{ number_format(auth()->user()->balance, 0, ',', '.') }}</strong></span>
+                </div>
+                <hr class="divider-dark">
+                <div class="info-tip">
+                    <i class="bi bi-lightbulb text-warning me-2"></i>
+                    <span class="small">Pastikan link yang dimasukkan benar dan akun tidak di-private.</span>
+                </div>
+                <div class="info-tip mt-2">
+                    <i class="bi bi-shield-check text-success me-2"></i>
+                    <span class="small">Harga sudah termasuk semua biaya. Tidak ada biaya tambahan.</span>
+                </div>
+                <div class="info-tip mt-2">
+                    <i class="bi bi-clock text-info me-2"></i>
+                    <span class="small">Estimasi pengerjaan berbeda-beda tergantung service yang dipilih.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
+
+@push('scripts')
+<script>
+const userBalance = {{ auth()->user()->balance }};
+let currentService = null;
+
+document.getElementById('categorySelect').addEventListener('change', function() {
+    const category = this.value;
+    const serviceSelect = document.getElementById('serviceSelect');
+    const serviceInfo = document.getElementById('serviceInfo');
+    const pricePreview = document.getElementById('pricePreview');
+    const submitBtn = document.getElementById('submitBtn');
+
+    serviceSelect.innerHTML = '<option value="">-- Pilih Service --</option>';
+    serviceInfo.classList.add('d-none');
+    pricePreview.classList.add('d-none');
+    submitBtn.disabled = true;
+    currentService = null;
+
+    if (!category) {
+        serviceSelect.disabled = true;
+        return;
+    }
+
+    serviceSelect.disabled = true;
+    serviceSelect.innerHTML = '<option value="">Loading...</option>';
+
+    fetch(`/order/services?category=${encodeURIComponent(category)}`)
+        .then(r => r.json())
+        .then(services => {
+            serviceSelect.innerHTML = '<option value="">-- Pilih Service --</option>';
+            services.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = `#${s.service_id} - ${s.name}`;
+                opt.dataset.service = JSON.stringify(s);
+                serviceSelect.appendChild(opt);
+            });
+            serviceSelect.disabled = false;
+        })
+        .catch(() => {
+            serviceSelect.innerHTML = '<option value="">Error loading services</option>';
+        });
+});
+
+document.getElementById('serviceSelect').addEventListener('change', function() {
+    const opt = this.options[this.selectedIndex];
+    const serviceInfo = document.getElementById('serviceInfo');
+    const pricePreview = document.getElementById('pricePreview');
+    const submitBtn = document.getElementById('submitBtn');
+
+    if (!opt.dataset.service) {
+        serviceInfo.classList.add('d-none');
+        pricePreview.classList.add('d-none');
+        submitBtn.disabled = true;
+        currentService = null;
+        return;
+    }
+
+    currentService = JSON.parse(opt.dataset.service);
+    document.getElementById('infoRate').textContent = `Rp ${formatRupiah(currentService.rate * 1000)} / 1000`;
+    document.getElementById('infoMinMax').textContent = `${formatNumber(currentService.min)} - ${formatNumber(currentService.max)}`;
+
+    const descEl = document.getElementById('infoDesc');
+    if (currentService.description) {
+        descEl.textContent = currentService.description;
+        descEl.classList.remove('d-none');
+    } else {
+        descEl.classList.add('d-none');
+    }
+
+    const quantityInput = document.getElementById('quantityInput');
+    quantityInput.min = currentService.min;
+    quantityInput.max = currentService.max;
+    quantityInput.placeholder = currentService.min;
+    document.getElementById('quantityHint').textContent = `Min: ${formatNumber(currentService.min)} | Max: ${formatNumber(currentService.max)}`;
+
+    serviceInfo.classList.remove('d-none');
+    pricePreview.classList.remove('d-none');
+    submitBtn.disabled = false;
+    updatePrice();
+});
+
+document.getElementById('quantityInput').addEventListener('input', updatePrice);
+
+function updatePrice() {
+    if (!currentService) return;
+    const qty = parseInt(document.getElementById('quantityInput').value) || 0;
+    const price = (qty / 1000) * currentService.rate;
+    document.getElementById('estimatedPrice').textContent = `Rp ${formatRupiah(price)}`;
+
+    const submitBtn = document.getElementById('submitBtn');
+    if (price > userBalance) {
+        submitBtn.classList.add('btn-danger');
+        submitBtn.classList.remove('btn-accent');
+        submitBtn.textContent = 'Saldo Tidak Cukup';
+        submitBtn.disabled = true;
+    } else {
+        submitBtn.classList.remove('btn-danger');
+        submitBtn.classList.add('btn-accent');
+        submitBtn.innerHTML = '<i class="bi bi-cart-check me-2"></i>Buat Order';
+        submitBtn.disabled = false;
+    }
+}
+
+function formatRupiah(num) {
+    return Math.round(num).toLocaleString('id-ID');
+}
+
+function formatNumber(num) {
+    return num.toLocaleString('id-ID');
+}
+</script>
+@endpush
+
+--- FILE: resources/views/dashboard/history.blade.php ---
+@extends('layouts.app')
+@section('title', 'Riwayat Order')
+
+@section('content')
+<div class="panel-card">
+    <div class="panel-card-header">
+        <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Riwayat Order</h6>
+        <div class="d-flex gap-2">
+            <span class="text-muted small">Total: {{ $orders->total() }} order</span>
+        </div>
+    </div>
+    <div class="panel-card-body p-0">
+        @if($orders->isEmpty())
+            <div class="empty-state py-5">
+                <i class="bi bi-inbox display-4 text-muted"></i>
+                <p class="text-muted mt-2">Belum ada order</p>
+                <a href="{{ route('order') }}" class="btn btn-accent btn-sm">Buat Order Sekarang</a>
+            </div>
+        @else
+            <div class="table-responsive">
+                <table class="table table-dark-custom">
+                    <thead>
+                        <tr>
+                            <th>#ID</th>
+                            <th>Service</th>
+                            <th>Link</th>
+                            <th>Qty</th>
+                            <th>Harga</th>
+                            <th>Status</th>
+                            <th>Progress</th>
+                            <th>Tanggal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($orders as $order)
+                        <tr>
+                            <td class="text-muted">#{{ $order->id }}</td>
+                            <td>
+                                <div class="service-name-cell">{{ $order->service->name }}</div>
+                                <small class="text-muted">ID: {{ $order->service->service_id }}</small>
+                            </td>
+                            <td>
+                                <a href="{{ $order->link }}" target="_blank" class="text-accent small link-cell">
+                                    {{ Str::limit($order->link, 30) }}
+                                </a>
+                            </td>
+                            <td>{{ number_format($order->quantity) }}</td>
+                            <td class="fw-500">Rp {{ number_format($order->price, 0, ',', '.') }}</td>
+                            <td><span class="badge bg-{{ $order->status_badge }}">{{ $order->status_label }}</span></td>
+                            <td>
+                                @if($order->remains !== null)
+                                    <small class="text-muted">Sisa: {{ number_format($order->remains) }}</small>
+                                @else
+                                    <small class="text-muted">-</small>
+                                @endif
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ $order->created_at->format('d/m/Y') }}<br>{{ $order->created_at->format('H:i') }}</small>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            <div class="p-3">{{ $orders->links() }}</div>
+        @endif
+    </div>
+</div>
+@endsection
+
+--- FILE: resources/views/admin/dashboard.blade.php ---
+@extends('layouts.app')
+@section('title', 'Admin Dashboard')
+
+@section('content')
+<div class="row g-4 mb-4">
+    <div class="col-sm-6 col-xl-4">
+        <div class="stat-card">
+            <div class="stat-icon bg-accent-soft"><i class="bi bi-people text-accent"></i></div>
+            <div class="stat-info">
+                <div class="stat-label">Total Users</div>
+                <div class="stat-value">{{ number_format($stats['total_users']) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-4">
+        <div class="stat-card">
+            <div class="stat-icon bg-info-soft"><i class="bi bi-cart text-info"></i></div>
+            <div class="stat-info">
+                <div class="stat-label">Total Orders</div>
+                <div class="stat-value">{{ number_format($stats['total_orders']) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-4">
+        <div class="stat-card">
+            <div class="stat-icon bg-warning-soft"><i class="bi bi-hourglass text-warning"></i></div>
+            <div class="stat-info">
+                <div class="stat-label">Pending Top Up</div>
+                <div class="stat-value">{{ number_format($stats['pending_topups']) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-4">
+        <div class="stat-card">
+            <div class="stat-icon bg-success-soft"><i class="bi bi-cash-coin text-success"></i></div>
+            <div class="stat-info">
+                <div class="stat-label">Total Revenue</div>
+                <div class="stat-value small-val">Rp {{ number_format($stats['total_revenue'], 0, ',', '.') }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-4">
+        <div class="stat-card">
+            <div class="stat-icon bg-accent-soft"><i class="bi bi-cart-plus text-accent"></i></div>
+            <div class="stat-info">
+                <div class="stat-label">Order Hari Ini</div>
+                <div class="stat-value">{{ number_format($stats['today_orders']) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-4">
+        <div class="stat-card">
+            <div class="stat-icon bg-success-soft"><i class="bi bi-graph-up text-success"></i></div>
+            <div class="stat-info">
+                <div class="stat-label">Revenue Hari Ini</div>
+                <div class="stat-value small-val">Rp {{ number_format($stats['today_revenue'], 0, ',', '.') }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="panel-card">
+            <div class="panel-card-header">
+                <h6 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Top Up Terbaru</h6>
+                <a href="{{ route('admin.transactions') }}" class="btn btn-sm btn-outline-accent">Semua</a>
+            </div>
+            <div class="panel-card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-dark-custom mb-0">
+                        <thead><tr><th>User</th><th>Jumlah</th><th>Status</th></tr></thead>
+                        <tbody>
+                            @foreach($recent_transactions as $tx)
+                            <tr>
+                                <td>{{ $tx->user->name }}</td>
+                                <td>Rp {{ number_format($tx->amount, 0, ',', '.') }}</td>
+                                <td><span class="badge bg-{{ $tx->status_badge }}">{{ $tx->status_label }}</span></td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="panel-card">
+            <div class="panel-card-header">
+                <h6 class="mb-0"><i class="bi bi-cart me-2"></i>Order Terbaru</h6>
+            </div>
+            <div class="panel-card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-dark-custom mb-0">
+                        <thead><tr><th>User</th><th>Service</th><th>Status</th></tr></thead>
+                        <tbody>
+                            @foreach($recent_orders as $order)
+                            <tr>
+                                <td>{{ $order->user->name }}</td>
+                                <td class="small">{{ Str::limit($order->service->name, 25) }}</td>
+                                <td><span class="badge bg-{{ $order->status_badge }}">{{ $order->status_label }}</span></td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
+
+--- FILE: resources/views/admin/transactions.blade.php ---
+@extends('layouts.app')
+@section('title', 'Manajemen Top Up')
+
+@section('content')
+<div class="panel-card">
+    <div class="panel-card-header">
+        <h6 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Manajemen Top Up</h6>
+        <div class="d-flex gap-2">
+            <a href="{{ route('admin.transactions', ['status' => 'pending']) }}" class="btn btn-sm {{ request('status') == 'pending' ? 'btn-warning' : 'btn-outline-secondary' }}">Pending</a>
+            <a href="{{ route('admin.transactions', ['status' => 'approved']) }}" class="btn btn-sm {{ request('status') == 'approved' ? 'btn-success' : 'btn-outline-secondary' }}">Disetujui</a>
+            <a href="{{ route('admin.transactions') }}" class="btn btn-sm {{ !request('status') ? 'btn-accent' : 'btn-outline-secondary' }}">Semua</a>
+        </div>
+    </div>
+    <div class="panel-card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark-custom">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>User</th>
+                        <th>Jumlah</th>
+                        <th>Referensi</th>
+                        <th>Bukti</th>
+                        <th>Catatan</th>
+                        <th>Status</th>
+                        <th>Tanggal</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($transactions as $tx)
+                    <tr>
+                        <td>#{{ $tx->id }}</td>
+                        <td>
+                            <div class="fw-500">{{ $tx->user->name }}</div>
+                            <small class="text-muted">{{ $tx->user->email }}</small>
+                        </td>
+                        <td class="fw-600 text-accent">Rp {{ number_format($tx->amount, 0, ',', '.') }}</td>
+                        <td>{{ $tx->reference }}</td>
+                        <td>
+                            @if($tx->payment_proof)
+                                <a href="{{ asset('storage/'.$tx->payment_proof) }}" target="_blank" class="btn btn-sm btn-outline-info">
+                                    <i class="bi bi-image me-1"></i>Lihat
+                                </a>
+                            @else <span class="text-muted">-</span> @endif
+                        </td>
+                        <td><small class="text-muted">{{ $tx->notes ?? '-' }}</small></td>
+                        <td><span class="badge bg-{{ $tx->status_badge }}">{{ $tx->status_label }}</span></td>
+                        <td><small class="text-muted">{{ $tx->created_at->format('d/m/Y H:i') }}</small></td>
+                        <td>
+                            @if($tx->status === 'pending')
+                                <form method="POST" action="{{ route('admin.transactions.approve', $tx) }}" class="d-inline">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Setujui top up Rp {{ number_format($tx->amount, 0, ',', '.') }}?')">
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                </form>
+                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#rejectModal{{ $tx->id }}">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+
+                                <div class="modal fade" id="rejectModal{{ $tx->id }}" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content modal-dark">
+                                            <div class="modal-header border-dark">
+                                                <h6 class="modal-title">Tolak Top Up #{{ $tx->id }}</h6>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <form method="POST" action="{{ route('admin.transactions.reject', $tx) }}">
+                                                @csrf
+                                                <div class="modal-body">
+                                                    <label class="form-label">Alasan Penolakan</label>
+                                                    <textarea name="reject_reason" class="form-control form-control-dark" rows="3" required placeholder="Contoh: Bukti transfer tidak jelas"></textarea>
+                                                </div>
+                                                <div class="modal-footer border-dark">
+                                                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                                                    <button type="submit" class="btn btn-danger btn-sm">Tolak</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            @else
+                                <small class="text-muted">{{ $tx->approved_at ? $tx->approved_at->format('d/m H:i') : '-' }}</small>
+                            @endif
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        <div class="p-3">{{ $transactions->links() }}</div>
+    </div>
+</div>
+@endsection
+
+--- FILE: resources/views/admin/users.blade.php ---
+@extends('layouts.app')
+@section('title', 'Manajemen Users')
+
+@section('content')
+<div class="panel-card">
+    <div class="panel-card-header">
+        <h6 class="mb-0"><i class="bi bi-people me-2"></i>Manajemen Users</h6>
+        <form method="GET" class="d-flex gap-2">
+            <input type="text" name="search" class="form-control form-control-dark form-control-sm" placeholder="Cari nama/email..." value="{{ request('search') }}">
+            <button type="submit" class="btn btn-sm btn-accent"><i class="bi bi-search"></i></button>
+        </form>
+    </div>
+    <div class="panel-card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark-custom">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Nama</th>
+                        <th>Email</th>
+                        <th>WhatsApp</th>
+                        <th>Saldo</th>
+                        <th>Orders</th>
+                        <th>Login Via</th>
+                        <th>Bergabung</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($users as $user)
+                    <tr>
+                        <td>#{{ $user->id }}</td>
+                        <td class="fw-500">{{ $user->name }}</td>
+                        <td><small>{{ $user->email }}</small></td>
+                        <td><small class="text-muted">{{ $user->phone ?? '-' }}</small></td>
+                        <td class="fw-500 text-accent">Rp {{ number_format($user->balance, 0, ',', '.') }}</td>
+                        <td>{{ $user->orders_count }}</td>
+                        <td>
+                            @if($user->google_id)
+                                <span class="badge bg-danger"><i class="bi bi-google me-1"></i>Google</span>
+                            @else
+                                <span class="badge bg-secondary">Email</span>
+                            @endif
+                        </td>
+                        <td><small class="text-muted">{{ $user->created_at->format('d/m/Y') }}</small></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-accent" data-bs-toggle="modal" data-bs-target="#editBalance{{ $user->id }}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+
+                            <div class="modal fade" id="editBalance{{ $user->id }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content modal-dark">
+                                        <div class="modal-header border-dark">
+                                            <h6 class="modal-title">Edit Saldo: {{ $user->name }}</h6>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form method="POST" action="{{ route('admin.users.balance', $user) }}">
+                                            @csrf @method('PUT')
+                                            <div class="modal-body">
+                                                <div class="mb-3">
+                                                    <label class="form-label">Saldo Baru (Rp)</label>
+                                                    <input type="number" name="balance" class="form-control form-control-dark" value="{{ $user->balance }}" min="0" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Alasan Perubahan</label>
+                                                    <input type="text" name="notes" class="form-control form-control-dark" placeholder="Contoh: Bonus member" required>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer border-dark">
+                                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                                                <button type="submit" class="btn btn-accent btn-sm">Simpan</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        <div class="p-3">{{ $users->links() }}</div>
+    </div>
+</div>
+@endsection
+
+--- FILE: resources/views/admin/services.blade.php ---
+@extends('layouts.app')
+@section('title', 'Manajemen Services')
+
+@section('content')
+<div class="panel-card">
+    <div class="panel-card-header flex-wrap gap-2">
+        <h6 class="mb-0"><i class="bi bi-grid-3x3-gap me-2"></i>Manajemen Services</h6>
+        <div class="d-flex gap-2 flex-wrap">
+            <form method="GET" class="d-flex gap-2">
+                <input type="text" name="search" class="form-control form-control-dark form-control-sm" placeholder="Cari service..." value="{{ request('search') }}">
+                <select name="category" class="form-select form-control-dark form-select-sm" style="min-width:140px">
+                    <option value="">Semua Kategori</option>
+                    @foreach($categories as $cat)
+                        <option value="{{ $cat }}" {{ request('category') == $cat ? 'selected' : '' }}>{{ $cat }}</option>
+                    @endforeach
+                </select>
+                <button type="submit" class="btn btn-sm btn-accent"><i class="bi bi-search"></i></button>
+            </form>
+            <form method="POST" action="{{ route('admin.services.sync') }}">
+                @csrf
+                <button type="submit" class="btn btn-sm btn-info" onclick="return confirm('Sync services dari Ezkify API?')">
+                    <i class="bi bi-arrow-repeat me-1"></i>Sync API
+                </button>
+            </form>
+            <form method="GET" action="{{ route('admin.balance') }}">
+                <button type="submit" class="btn btn-sm btn-outline-success">
+                    <i class="bi bi-wallet me-1"></i>Cek Saldo
+                </button>
+            </form>
+        </div>
+    </div>
+    <div class="panel-card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark-custom">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nama</th>
+                        <th>Kategori</th>
+                        <th>Rate API</th>
+                        <th>Rate Custom</th>
+                        <th>Min/Max</th>
+                        <th>Status</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($services as $service)
+                    <tr class="{{ !$service->is_active ? 'opacity-50' : '' }}">
+                        <td><small class="text-muted">{{ $service->service_id }}</small></td>
+                        <td>
+                            <div class="service-name-cell">{{ $service->name }}</div>
+                        </td>
+                        <td><span class="badge bg-secondary">{{ $service->category }}</span></td>
+                        <td class="small">Rp {{ number_format($service->rate * 1000, 0, ',', '.') }}/1K</td>
+                        <td class="small">
+                            @if($service->custom_rate)
+                                <span class="text-accent">Rp {{ number_format($service->custom_rate * 1000, 0, ',', '.') }}/1K</span>
+                            @else
+                                <span class="text-muted">Default</span>
+                            @endif
+                        </td>
+                        <td class="small">{{ number_format($service->min) }} / {{ number_format($service->max) }}</td>
+                        <td>
+                            <span class="badge bg-{{ $service->is_active ? 'success' : 'secondary' }}">
+                                {{ $service->is_active ? 'Aktif' : 'Nonaktif' }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <form method="POST" action="{{ route('admin.services.toggle', $service) }}">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm {{ $service->is_active ? 'btn-outline-warning' : 'btn-outline-success' }}">
+                                        <i class="bi bi-{{ $service->is_active ? 'pause' : 'play' }}"></i>
+                                    </button>
+                                </form>
+                                <button class="btn btn-sm btn-outline-accent" data-bs-toggle="modal" data-bs-target="#rateModal{{ $service->id }}">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                            </div>
+
+                            <div class="modal fade" id="rateModal{{ $service->id }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content modal-dark">
+                                        <div class="modal-header border-dark">
+                                            <h6 class="modal-title">Set Rate Custom</h6>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form method="POST" action="{{ route('admin.services.rate', $service) }}">
+                                            @csrf @method('PUT')
+                                            <div class="modal-body">
+                                                <p class="text-muted small mb-2">Rate API: Rp {{ number_format($service->rate * 1000, 0, ',', '.') }}/1000</p>
+                                                <label class="form-label">Rate Custom per 1000 (Rp) — Kosongkan untuk default</label>
+                                                <input type="number" name="custom_rate" class="form-control form-control-dark" step="0.0001" min="0" value="{{ $service->custom_rate ? $service->custom_rate * 1000 : '' }}" placeholder="{{ $service->rate * 1000 }}">
+                                                <small class="text-muted">Nilai akan disimpan sebagai per 1000. Contoh: masukkan 5000 untuk Rp 5/order.</small>
+                                            </div>
+                                            <div class="modal-footer border-dark">
+                                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                                                <button type="submit" class="btn btn-accent btn-sm">Simpan</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        <div class="p-3">{{ $services->links() }}</div>
+    </div>
+</div>
+@endsection
+
+--- FILE: public/css/custom.css ---
+/* =============================================
+   RAPI DEV SMM PANEL - Custom CSS
+   Dark Theme | Bootstrap 5
+   ============================================= */
+
+:root {
+    --accent: #6c63ff;
+    --accent-hover: #5a52e0;
+    --accent-soft: rgba(108, 99, 255, 0.12);
+    --bg-body: #070710;
+    --bg-sidebar: #0c0c1a;
+    --bg-card: #111122;
+    --bg-card-hover: #161630;
+    --bg-input: #0d0d1e;
+    --border: rgba(108, 99, 255, 0.15);
+    --border-light: rgba(255, 255, 255, 0.06);
+    --text-primary: #e2e8f0;
+    --text-muted: #8892a4;
+    --sidebar-width: 240px;
+    --topbar-height: 60px;
+    --success: #00d4aa;
+    --info: #38bdf8;
+    --warning: #fbbf24;
+    --danger: #f87171;
+    --radius: 12px;
+    --radius-sm: 8px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    background: var(--bg-body);
+    color: var(--text-primary);
+    margin: 0;
+    overflow-x: hidden;
+}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg-body); }
+::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 10px; }
+
+/* ===== WRAPPER ===== */
+.wrapper {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar {
+    width: var(--sidebar-width);
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 1000;
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+}
+
+.sidebar-brand {
+    padding: 20px 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.brand-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: white;
+    flex-shrink: 0;
+}
+
+.brand-icon.large {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    font-size: 24px;
+    margin: 0 auto 12px;
+}
+
+.brand-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.5px;
+}
+
+.text-accent { color: var(--accent) !important; }
+
+.sidebar-user {
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.user-avatar {
+    width: 38px;
+    height: 38px;
+    background: linear-gradient(135deg, var(--accent), #a855f7);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+    color: white;
+    flex-shrink: 0;
+}
+
+.user-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-balance {
+    font-size: 12px;
+    color: var(--accent);
+    font-weight: 500;
+}
+
+.sidebar-nav {
+    list-style: none;
+    padding: 12px 8px;
+    margin: 0;
+    flex: 1;
+}
+
+.nav-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    padding: 8px 10px 4px;
+    font-weight: 600;
+}
+
+.nav-item {
+    margin: 2px 0;
+}
+
+.nav-item a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.nav-item a:hover {
+    color: var(--text-primary);
+    background: var(--accent-soft);
+}
+
+.nav-item.active a {
+    color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.badge-count {
+    background: var(--warning);
+    color: #1a1a00;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-left: auto;
+}
+
+.sidebar-footer {
+    padding: 12px;
+    border-top: 1px solid var(--border-light);
+}
+
+.btn-logout {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: var(--radius-sm);
+    padding: 9px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.btn-logout:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+    background: rgba(248, 113, 113, 0.08);
+}
+
+/* ===== MAIN CONTENT ===== */
+.main-content {
+    margin-left: var(--sidebar-width);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.topbar {
+    height: var(--topbar-height);
+    background: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.sidebar-toggle {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 22px;
+    cursor: pointer;
+    padding: 4px;
+    display: none;
+    line-height: 1;
+}
+
+.topbar-title {
+    font-weight: 600;
+    font-size: 16px;
+    flex: 1;
+}
+
+.content-area {
+    padding: 24px;
+    flex: 1;
+}
+
+/* ===== BUTTONS ===== */
+.btn-accent {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.btn-accent:hover {
+    background: var(--accent-hover);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(108, 99, 255, 0.3);
+}
+
+.btn-outline-accent {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.btn-outline-accent:hover {
+    background: var(--accent);
+    color: white;
+}
+
+/* ===== STAT CARDS ===== */
+.stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: all 0.2s;
+}
+
+.stat-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.bg-accent-soft { background: var(--accent-soft); }
+.bg-info-soft { background: rgba(56, 189, 248, 0.1); }
+.bg-warning-soft { background: rgba(251, 191, 36, 0.1); }
+.bg-success-soft { background: rgba(0, 212, 170, 0.1); }
+.text-info { color: var(--info) !important; }
+.text-warning { color: var(--warning) !important; }
+.text-success { color: var(--success) !important; }
+
+.stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.stat-value.small-val { font-size: 16px; }
+
+/* ===== PANEL CARDS ===== */
+.panel-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.panel-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-light);
+    font-weight: 600;
+}
+
+.panel-card-body {
+    padding: 20px;
+}
+
+/* ===== TABLES ===== */
+.table-dark-custom {
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.table-dark-custom thead th {
+    background: rgba(108, 99, 255, 0.06);
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 12px 16px;
+    white-space: nowrap;
+}
+
+.table-dark-custom tbody td {
+    border-bottom: 1px solid var(--border-light);
+    padding: 13px 16px;
+    vertical-align: middle;
+    font-size: 14px;
+}
+
+.table-dark-custom tbody tr:hover td {
+    background: rgba(108, 99, 255, 0.04);
+}
+
+.table-dark-custom tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.text-truncate-cell {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.service-name-cell {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+}
+
+/* ===== FORMS ===== */
+.form-control-dark,
+.form-select.form-control-dark {
+    background: var(--bg-input) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text-primary) !important;
+    border-radius: var(--radius-sm) !important;
+    padding: 10px 14px !important;
+    transition: border-color 0.2s !important;
+}
+
+.form-control-dark:focus,
+.form-select.form-control-dark:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px var(--accent-soft) !important;
+    outline: none !important;
+}
+
+.form-control-dark::placeholder { color: var(--text-muted) !important; }
+.form-select.form-control-dark option { background: #1a1a2e; }
+
+.input-group-custom {
+    position: relative;
+}
+
+.input-group-custom .input-icon {
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 15px;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.input-group-custom .form-control-dark {
+    padding-left: 40px !important;
+}
+
+/* ===== SERVICE INFO BOX ===== */
+.service-info-box {
+    background: rgba(108, 99, 255, 0.06);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+}
+
+.service-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    margin-bottom: 6px;
+    color: var(--text-muted);
+}
+
+.service-info-row:last-child { margin-bottom: 0; }
+.service-info-row strong { color: var(--text-primary); }
+.service-info-desc { font-size: 12px; color: var(--text-muted); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-light); }
+
+/* ===== PRICE PREVIEW ===== */
+.price-preview {
+    background: rgba(0, 212, 170, 0.06);
+    border: 1px solid rgba(0, 212, 170, 0.2);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+}
+
+.price-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    margin-bottom: 4px;
+    color: var(--text-muted);
+}
+
+.price-row:last-child { margin-bottom: 0; }
+
+/* ===== PAYMENT INFO ===== */
+.payment-info {
+    background: rgba(108, 99, 255, 0.06);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.payment-info-title {
+    background: var(--accent-soft);
+    padding: 10px 14px;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--accent);
+}
+
+.payment-info-body {
+    padding: 12px 14px;
+}
+
+.payment-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-muted);
+}
+
+.payment-row:last-child { border-bottom: none; }
+.payment-row strong { color: var(--text-primary); }
+
+/* ===== BALANCE DISPLAY ===== */
+.balance-display {
+    text-align: center;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(108, 99, 255, 0.15), rgba(168, 85, 247, 0.1));
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+}
+
+.balance-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+.balance-amount { font-size: 26px; font-weight: 700; color: var(--accent); }
+
+/* ===== FILE UPLOAD ===== */
+.file-upload-area {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-sm);
+    padding: 30px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.file-upload-area:hover, .file-upload-area.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.file-preview {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    inset: 0;
+}
+
+.img-preview {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+.preview-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0,0,0,0.7);
+    padding: 4px 8px;
+    color: white;
+    font-size: 11px;
+}
+
+/* ===== TOPUP ITEM ===== */
+.topup-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.topup-item:last-child { border-bottom: none; }
+.fw-500 { font-weight: 500; }
+.fw-600 { font-weight: 600; }
+
+/* ===== EMPTY STATE ===== */
+.empty-state {
+    text-align: center;
+    padding: 40px;
+}
+
+/* ===== INFO ITEMS ===== */
+.info-item {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    padding: 8px 0;
+}
+
+.divider-dark {
+    border-color: var(--border-light);
+    margin: 10px 0;
+}
+
+.info-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 2px;
+}
+
+/* ===== MODALS ===== */
+.modal-dark {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+}
+
+/* ===== AUTH PAGES ===== */
+.auth-body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-body);
+    position: relative;
+    overflow: hidden;
+}
+
+.auth-bg {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 30% 50%, rgba(108, 99, 255, 0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 70% 20%, rgba(168, 85, 247, 0.06) 0%, transparent 50%);
+}
+
+.auth-orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+}
+
+.auth-orb-1 {
+    width: 400px;
+    height: 400px;
+    background: rgba(108, 99, 255, 0.1);
+    top: -100px;
+    left: -100px;
+}
+
+.auth-orb-2 {
+    width: 300px;
+    height: 300px;
+    background: rgba(168, 85, 247, 0.08);
+    bottom: -50px;
+    right: -50px;
+}
+
+.auth-container {
+    width: 100%;
+    max-width: 420px;
+    padding: 20px;
+    position: relative;
+    z-index: 1;
+}
+
+.auth-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 36px 32px;
+    backdrop-filter: blur(10px);
+}
+
+.auth-brand {
+    text-align: center;
+    margin-bottom: 28px;
+}
+
+.auth-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0;
+}
+
+.auth-subtitle {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin: 4px 0 0;
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--text-muted);
+    font-size: 12px;
+    margin: 16px 0;
+}
+
+.divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-light);
+}
+
+.btn-google {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    transition: all 0.2s;
+}
+
+.btn-google:hover {
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.2);
+    color: var(--text-primary);
+    transform: translateY(-1px);
+}
+
+/* ===== BADGE OVERRIDES ===== */
+.badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 6px;
+}
+
+.bg-success { background-color: var(--success) !important; color: #003d2e !important; }
+.bg-warning { background-color: var(--warning) !important; color: #3d2d00 !important; }
+.bg-info { background-color: var(--info) !important; color: #00213d !important; }
+.bg-danger { background-color: var(--danger) !important; color: #3d0000 !important; }
+.bg-primary { background-color: var(--accent) !important; }
+.bg-secondary { background-color: rgba(255,255,255,0.1) !important; color: var(--text-muted) !important; }
+
+/* ===== PAGINATION ===== */
+.pagination {
+    gap: 4px;
+    margin: 0;
+}
+
+.page-link {
+    background: var(--bg-input);
+    border-color: var(--border);
+    color: var(--text-muted);
+    border-radius: 6px !important;
+    font-size: 13px;
+    padding: 6px 12px;
+}
+
+.page-link:hover, .page-item.active .page-link {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+/* ===== ALERT OVERRIDES ===== */
+.alert {
+    border-radius: var(--radius-sm);
+    border: 1px solid;
+    font-size: 14px;
+}
+
+.alert-success { background: rgba(0, 212, 170, 0.1); border-color: rgba(0, 212, 170, 0.3); color: var(--success); }
+.alert-danger { background: rgba(248, 113, 113, 0.1); border-color: rgba(248, 113, 113, 0.3); color: var(--danger); }
+.alert-warning { background: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.3); color: var(--warning); }
+.alert-info { background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.3); color: var(--info); }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        margin-left: 0;
+    }
+
+    .sidebar-toggle {
+        display: block;
+    }
+
+    .content-area {
+        padding: 16px;
+    }
+
+    .auth-card {
+        padding: 24px 20px;
+    }
+}
+
+--- FILE: public/js/custom.js ---
+// =============================================
+//  RAPI DEV SMM PANEL - Custom JS
+// =============================================
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Sidebar Toggle (Mobile)
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('sidebar');
+
+    if (sidebarToggle && sidebar) {
+        sidebarToggle.addEventListener('click', function () {
+            sidebar.classList.toggle('open');
+        });
+
+        document.addEventListener('click', function (e) {
+            if (sidebar.classList.contains('open') &&
+                !sidebar.contains(e.target) &&
+                !sidebarToggle.contains(e.target)) {
+                sidebar.classList.remove('open');
+            }
+        });
+    }
+
+    // Auto-dismiss alerts
+    const alerts = document.querySelectorAll('.alert.alert-dismissible');
+    alerts.forEach(function (alert) {
+        setTimeout(function () {
+            const bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
+            if (bsAlert) bsAlert.close();
+        }, 5000);
+    });
+
+    // Form loading states
+    const forms = document.querySelectorAll('form');
+    forms.forEach(function (form) {
+        form.addEventListener('submit', function () {
+            const submitBtn = form.querySelector('button[type="submit"]:not(.no-loading)');
+            if (submitBtn && !submitBtn.dataset.noLoading) {
+                const original = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Memproses...';
+                setTimeout(function () {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = original;
+                }, 8000);
+            }
+        });
+    });
+
+    // Tooltip init
+    const tooltipTriggers = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    tooltipTriggers.forEach(function (el) {
+        new bootstrap.Tooltip(el);
+    });
+
+    // Copy to clipboard
+    document.querySelectorAll('[data-copy]').forEach(function (el) {
+        el.addEventListener('click', function () {
+            const text = el.getAttribute('data-copy');
+            navigator.clipboard.writeText(text).then(function () {
+                const original = el.innerHTML;
+                el.innerHTML = '<i class="bi bi-check-lg"></i>';
+                setTimeout(function () { el.innerHTML = original; }, 1500);
+            });
+        });
+    });
+
+    // Number formatting in inputs
+    const numberInputs = document.querySelectorAll('input[type="number"]');
+    numberInputs.forEach(function (input) {
+        input.addEventListener('wheel', function (e) {
+            e.preventDefault();
+        });
+    });
+
+    // Service rate modal fix
+    document.querySelectorAll('[id^="rateModal"]').forEach(function (modal) {
+        modal.addEventListener('show.bs.modal', function () {
+            const input = modal.querySelector('input[name="custom_rate"]');
+            if (input && input.value) {
+                // value is per 1000, display as per 1000
+            }
+        });
+    });
+});
+
+// Format currency helper
+function formatIDR(amount) {
+    return 'Rp ' + Math.round(amount).toLocaleString('id-ID');
+}
