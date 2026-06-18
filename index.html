@@ -1,1 +1,1394 @@
+<?php
+// ============================================
+// SMM PANEL PRO - Complete 1-File PHP Application
+// Dark Theme + Ezkify API + WhatsApp Notification
+// ============================================
 
+// ===== SESSION START =====
+session_start();
+
+// ===== DATABASE CONFIGURATION =====
+define('DB_HOST', 'localhost');
+define('DB_USER', 'root');
+define('DB_PASS', '');
+define('DB_NAME', 'smmpanel_db');
+
+// ===== API CONFIGURATION =====
+define('EZKIFY_API_KEY', '3aa05b172efb80403de5eb67c7dae063');
+define('EZKIFY_BASE_URL', 'https://ezkify.com/api/v2');
+define('WA_TOKEN', '663999c15d3ae2d966280c63d2962df79d94b4cde2705625');
+define('WA_WEBHOOK', 'https://rapidev.web.id/api/wa/incoming');
+
+// ===== DATABASE CONNECTION =====
+function getDB() {
+    $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+    if ($conn->connect_error) {
+        die("Connection failed: " . $conn->connect_error);
+    }
+    return $conn;
+}
+
+// ===== HELPER FUNCTIONS =====
+function isLoggedIn() {
+    return isset($_SESSION['user_id']);
+}
+
+function isAdmin() {
+    return isset($_SESSION['role']) && $_SESSION['role'] == 'admin';
+}
+
+function sanitize($input) {
+    return htmlspecialchars(strip_tags(trim($input)));
+}
+
+function redirect($url) {
+    header("Location: $url");
+    exit;
+}
+
+function generateCSRF() {
+    if (!isset($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
+}
+
+function verifyCSRF($token) {
+    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
+}
+
+// ===== DATABASE TABLES CREATION =====
+function initDatabase() {
+    $conn = getDB();
+    
+    $sql = "CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(100),
+        email VARCHAR(100) UNIQUE,
+        password VARCHAR(255),
+        phone VARCHAR(20),
+        balance DECIMAL(15,2) DEFAULT 0,
+        role ENUM('user','admin') DEFAULT 'user',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )";
+    $conn->query($sql);
+    
+    $sql = "CREATE TABLE IF NOT EXISTS transactions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT,
+        amount DECIMAL(15,2),
+        payment_proof VARCHAR(255),
+        status ENUM('pending','confirmed','rejected') DEFAULT 'pending',
+        admin_note TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        confirmed_at TIMESTAMP NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )";
+    $conn->query($sql);
+    
+    $sql = "CREATE TABLE IF NOT EXISTS orders (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT,
+        service_id INT,
+        target_url VARCHAR(255),
+        quantity INT,
+        price DECIMAL(15,2),
+        status ENUM('pending','processing','completed','error') DEFAULT 'pending',
+        provider_order_id VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )";
+    $conn->query($sql);
+    
+    $sql = "CREATE TABLE IF NOT EXISTS services (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        provider_service_id INT,
+        name VARCHAR(255),
+        category VARCHAR(50),
+        price DECIMAL(15,2),
+        min_quantity INT,
+        max_quantity INT,
+        description TEXT,
+        status ENUM('active','inactive') DEFAULT 'active'
+    )";
+    $conn->query($sql);
+    
+    // Insert default admin if not exists
+    $check = $conn->query("SELECT id FROM users WHERE email = 'admin@smmpanel.com'");
+    if ($check->num_rows == 0) {
+        $conn->query("INSERT INTO users (name, email, password, role, balance) VALUES ('Admin', 'admin@smmpanel.com', '" . password_hash('admin123', PASSWORD_DEFAULT) . "', 'admin', 0)");
+    }
+    
+    $conn->close();
+}
+
+// Initialize database tables
+initDatabase();
+
+// ===== API FUNCTIONS =====
+function getServicesFromAPI() {
+    $ch = curl_init(EZKIFY_BASE_URL . '/services');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'X-API-Key: ' . EZKIFY_API_KEY,
+        'Content-Type: application/json'
+    ]);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode == 200) {
+        $data = json_decode($response, true);
+        return $data['data'] ?? [];
+    }
+    
+    // Return dummy data if API fails
+    return [
+        ['id' => 1, 'name' => 'Instagram Followers', 'price' => 8000, 'min' => 100, 'max' => 10000],
+        ['id' => 2, 'name' => 'TikTok Followers', 'price' => 10000, 'min' => 100, 'max' => 5000],
+        ['id' => 3, 'name' => 'YouTube Subscribers', 'price' => 12000, 'min' => 50, 'max' => 1000],
+        ['id' => 4, 'name' => 'Instagram Likes', 'price' => 5000, 'min' => 100, 'max' => 5000],
+        ['id' => 5, 'name' => 'Twitter Followers', 'price' => 9000, 'min' => 100, 'max' => 5000],
+    ];
+}
+
+function placeOrderAPI($serviceId, $target, $quantity) {
+    $ch = curl_init(EZKIFY_BASE_URL . '/order');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'X-API-Key: ' . EZKIFY_API_KEY,
+        'Content-Type: application/json'
+    ]);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+        'service_id' => $serviceId,
+        'target' => $target,
+        'quantity' => $quantity
+    ]));
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode == 200) {
+        $data = json_decode($response, true);
+        return ['success' => true, 'order_id' => $data['order_id'] ?? rand(100000, 999999)];
+    }
+    
+    return ['success' => false, 'message' => 'Order failed'];
+}
+
+function sendWhatsApp($phone, $message) {
+    $ch = curl_init(WA_WEBHOOK);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Authorization: Bearer ' . WA_TOKEN,
+        'Content-Type: application/json'
+    ]);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+        'phone' => $phone,
+        'message' => $message
+    ]));
+    
+    $response = curl_exec($ch);
+    curl_close($ch);
+    return json_decode($response, true);
+}
+
+function getUserBalance($userId) {
+    $conn = getDB();
+    $stmt = $conn->prepare("SELECT balance FROM users WHERE id = ?");
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $balance = $result->fetch_assoc()['balance'] ?? 0;
+    $stmt->close();
+    $conn->close();
+    return $balance;
+}
+
+function addBalance($userId, $amount) {
+    $conn = getDB();
+    $stmt = $conn->prepare("UPDATE users SET balance = balance + ? WHERE id = ?");
+    $stmt->bind_param("di", $amount, $userId);
+    $stmt->execute();
+    $stmt->close();
+    $conn->close();
+}
+
+function getServices() {
+    $conn = getDB();
+    $result = $conn->query("SELECT * FROM services WHERE status = 'active'");
+    $services = [];
+    while ($row = $result->fetch_assoc()) {
+        $services[] = $row;
+    }
+    $conn->close();
+    return $services;
+}
+
+// ===== REQUEST HANDLING =====
+$page = isset($_GET['page']) ? sanitize($_GET['page']) : 'home';
+
+// Handle AJAX requests
+if (isset($_POST['ajax_action'])) {
+    $action = $_POST['ajax_action'];
+    
+    if ($action == 'sync_services' && isAdmin()) {
+        $apiServices = getServicesFromAPI();
+        $conn = getDB();
+        $conn->query("TRUNCATE TABLE services");
+        $stmt = $conn->prepare("INSERT INTO services (provider_service_id, name, price, min_quantity, max_quantity, description) VALUES (?, ?, ?, ?, ?, ?)");
+        
+        foreach ($apiServices as $service) {
+            $stmt->bind_param("isdiis", 
+                $service['id'], 
+                $service['name'], 
+                $service['price'], 
+                $service['min'], 
+                $service['max'], 
+                $service['name']
+            );
+            $stmt->execute();
+        }
+        $stmt->close();
+        $conn->close();
+        echo json_encode(['success' => true, 'message' => 'Services synced successfully']);
+        exit;
+    }
+}
+
+// Handle POST requests
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    if (isset($_POST['action'])) {
+        $action = $_POST['action'];
+        
+        // CSRF Protection for sensitive actions
+        if (in_array($action, ['place_order', 'topup', 'confirm_topup', 'edit_user'])) {
+            if (!verifyCSRF($_POST['csrf_token'] ?? '')) {
+                redirect("?page=dashboard&error=invalid_csrf");
+            }
+        }
+        
+        // LOGIN
+        if ($action == 'login') {
+            $email = sanitize($_POST['email']);
+            $password = $_POST['password'];
+            
+            $conn = getDB();
+            $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($result->num_rows > 0) {
+                $user = $result->fetch_assoc();
+                if (password_verify($password, $user['password'])) {
+                    $_SESSION['user_id'] = $user['id'];
+                    $_SESSION['user_name'] = $user['name'];
+                    $_SESSION['role'] = $user['role'];
+                    redirect("?page=dashboard");
+                }
+            }
+            $stmt->close();
+            $conn->close();
+            redirect("?page=login&error=invalid_credentials");
+        }
+        
+        // REGISTER
+        if ($action == 'register') {
+            $name = sanitize($_POST['name']);
+            $email = sanitize($_POST['email']);
+            $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+            $phone = sanitize($_POST['phone']);
+            
+            $conn = getDB();
+            $stmt = $conn->prepare("INSERT INTO users (name, email, password, phone) VALUES (?, ?, ?, ?)");
+            $stmt->bind_param("ssss", $name, $email, $password, $phone);
+            
+            if ($stmt->execute()) {
+                sendWhatsApp($phone, "Welcome to SMM Panel Pro, $name! Your account has been created successfully.");
+                redirect("?page=login&success=registered");
+            }
+            $stmt->close();
+            $conn->close();
+            redirect("?page=register&error=email_exists");
+        }
+        
+        // LOGOUT
+        if ($action == 'logout') {
+            session_destroy();
+            redirect("?page=login");
+        }
+        
+        // PLACE ORDER
+        if ($action == 'place_order' && isLoggedIn()) {
+            $serviceId = intval($_POST['service_id']);
+            $target = sanitize($_POST['target']);
+            $quantity = intval($_POST['quantity']);
+            
+            // Get service price
+            $conn = getDB();
+            $stmt = $conn->prepare("SELECT * FROM services WHERE id = ?");
+            $stmt->bind_param("i", $serviceId);
+            $stmt->execute();
+            $service = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            
+            if ($service) {
+                $totalPrice = ($service['price'] * $quantity) / 1000;
+                $userBalance = getUserBalance($_SESSION['user_id']);
+                
+                if ($userBalance >= $totalPrice) {
+                    // Deduct balance
+                    $conn->query("UPDATE users SET balance = balance - $totalPrice WHERE id = " . $_SESSION['user_id']);
+                    
+                    // Place order via API
+                    $orderResult = placeOrderAPI($service['provider_service_id'], $target, $quantity);
+                    
+                    $stmt = $conn->prepare("INSERT INTO orders (user_id, service_id, target_url, quantity, price, status, provider_order_id) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                    $status = $orderResult['success'] ? 'processing' : 'pending';
+                    $providerOrderId = $orderResult['order_id'] ?? null;
+                    $stmt->bind_param("iisidss", $_SESSION['user_id'], $serviceId, $target, $quantity, $totalPrice, $status, $providerOrderId);
+                    $stmt->execute();
+                    $stmt->close();
+                    
+                    sendWhatsApp($_SESSION['phone'] ?? '', "Order placed! Service: {$service['name']}, Quantity: $quantity, Total: Rp $totalPrice");
+                }
+            }
+            $conn->close();
+            redirect("?page=dashboard&success=order_placed");
+        }
+        
+        // TOP UP
+        if ($action == 'topup' && isLoggedIn()) {
+            $amount = floatval($_POST['amount']);
+            $uploadDir = 'uploads/';
+            if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+            
+            if (isset($_FILES['payment_proof']) && $_FILES['payment_proof']['error'] == 0) {
+                $filename = time() . '_' . $_SESSION['user_id'] . '_' . $_FILES['payment_proof']['name'];
+                move_uploaded_file($_FILES['payment_proof']['tmp_name'], $uploadDir . $filename);
+                
+                $conn = getDB();
+                $stmt = $conn->prepare("INSERT INTO transactions (user_id, amount, payment_proof) VALUES (?, ?, ?)");
+                $stmt->bind_param("ids", $_SESSION['user_id'], $amount, $filename);
+                $stmt->execute();
+                $stmt->close();
+                $conn->close();
+            }
+            redirect("?page=topup&success=submitted");
+        }
+        
+        // ADMIN: CONFIRM TOPUP
+        if ($action == 'confirm_topup' && isAdmin()) {
+            $transactionId = intval($_POST['transaction_id']);
+            $status = $_POST['status'] == 'confirm' ? 'confirmed' : 'rejected';
+            
+            $conn = getDB();
+            if ($status == 'confirmed') {
+                $stmt = $conn->prepare("SELECT user_id, amount FROM transactions WHERE id = ?");
+                $stmt->bind_param("i", $transactionId);
+                $stmt->execute();
+                $transaction = $stmt->get_result()->fetch_assoc();
+                $stmt->close();
+                
+                if ($transaction) {
+                    addBalance($transaction['user_id'], $transaction['amount']);
+                }
+            }
+            
+            $stmt = $conn->prepare("UPDATE transactions SET status = ?, confirmed_at = CURRENT_TIMESTAMP WHERE id = ?");
+            $stmt->bind_param("si", $status, $transactionId);
+            $stmt->execute();
+            $stmt->close();
+            $conn->close();
+            redirect("?page=admin&success=transaction_updated");
+        }
+        
+        // ADMIN: EDIT USER
+        if ($action == 'edit_user' && isAdmin()) {
+            $userId = intval($_POST['user_id']);
+            $balance = floatval($_POST['balance']);
+            
+            $conn = getDB();
+            $stmt = $conn->prepare("UPDATE users SET balance = ? WHERE id = ?");
+            $stmt->bind_param("di", $balance, $userId);
+            $stmt->execute();
+            $stmt->close();
+            $conn->close();
+            redirect("?page=admin&success=user_updated");
+        }
+        
+        // ADMIN: DELETE USER
+        if ($action == 'delete_user' && isAdmin()) {
+            $userId = intval($_POST['user_id']);
+            $conn = getDB();
+            $conn->query("DELETE FROM users WHERE id = $userId AND role != 'admin'");
+            $conn->close();
+            redirect("?page=admin&success=user_deleted");
+        }
+    }
+}
+
+// Check if services table is empty, if so sync
+$conn = getDB();
+$result = $conn->query("SELECT COUNT(*) as count FROM services");
+$count = $result->fetch_assoc()['count'];
+$conn->close();
+
+if ($count == 0) {
+    $apiServices = getServicesFromAPI();
+    $conn = getDB();
+    $stmt = $conn->prepare("INSERT INTO services (provider_service_id, name, price, min_quantity, max_quantity, description) VALUES (?, ?, ?, ?, ?, ?)");
+    
+    foreach ($apiServices as $service) {
+        $stmt->bind_param("isdiis", 
+            $service['id'], 
+            $service['name'], 
+            $service['price'], 
+            $service['min'], 
+            $service['max'], 
+            $service['name']
+        );
+        $stmt->execute();
+    }
+    $stmt->close();
+    $conn->close();
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMM Panel Pro - Premium Social Media Services</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #1a1f2e;
+            --bg-card: #1e2433;
+            --text-primary: #e0e6ed;
+            --text-secondary: #8b95a5;
+            --accent: #00f0ff;
+            --accent-glow: rgba(0, 240, 255, 0.2);
+            --success: #00c853;
+            --danger: #ff1744;
+            --warning: #ffc400;
+        }
+        
+        * {
+            transition: all 0.3s ease;
+        }
+        
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+        }
+        
+        .navbar {
+            background: var(--bg-secondary) !important;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .navbar-brand {
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent), #00b8d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 1.5rem;
+        }
+        
+        .nav-link {
+            color: var(--text-secondary) !important;
+            position: relative;
+        }
+        
+        .nav-link:hover {
+            color: var(--accent) !important;
+        }
+        
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background: var(--accent);
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+        }
+        
+        .nav-link:hover::after {
+            width: 100%;
+        }
+        
+        .card {
+            background: var(--bg-card);
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.5s ease;
+        }
+        
+        .card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 10px 30px var(--accent-glow);
+            transform: translateY(-5px);
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #00b8d4);
+            border: none;
+            color: var(--bg-primary);
+            font-weight: 600;
+            padding: 12px 30px;
+            border-radius: 10px;
+        }
+        
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px var(--accent-glow);
+        }
+        
+        .btn-outline-primary {
+            border: 2px solid var(--accent);
+            color: var(--accent);
+            border-radius: 10px;
+            padding: 12px 30px;
+        }
+        
+        .btn-outline-primary:hover {
+            background: var(--accent);
+            color: var(--bg-primary);
+            box-shadow: 0 0 30px var(--accent-glow);
+        }
+        
+        .form-control {
+            background: var(--bg-secondary);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            color: var(--text-primary);
+            border-radius: 10px;
+            padding: 12px;
+        }
+        
+        .form-control:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px var(--accent-glow);
+            background: var(--bg-secondary);
+        }
+        
+        .badge-success {
+            background: var(--success);
+            padding: 8px 15px;
+            border-radius: 20px;
+        }
+        
+        .badge-warning {
+            background: var(--warning);
+            color: #000;
+            padding: 8px 15px;
+            border-radius: 20px;
+        }
+        
+        .badge-danger {
+            background: var(--danger);
+            padding: 8px 15px;
+            border-radius: 20px;
+        }
+        
+        .badge-info {
+            background: var(--accent);
+            color: #000;
+            padding: 8px 15px;
+            border-radius: 20px;
+        }
+        
+        table {
+            color: var(--text-primary);
+        }
+        
+        .table-dark {
+            background: var(--bg-secondary);
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        
+        .table-dark th {
+            background: var(--bg-card);
+            border-color: rgba(0, 240, 255, 0.1);
+        }
+        
+        .balance-card {
+            background: linear-gradient(135deg, var(--accent), #00b8d4);
+            color: #000;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .balance-card h1 {
+            font-size: 3rem;
+            font-weight: 800;
+        }
+        
+        .admin-badge {
+            position: relative;
+            display: inline-block;
+            padding: 5px 15px;
+            background: var(--danger);
+            border-radius: 20px;
+            font-size: 0.8rem;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 23, 68, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 23, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 23, 68, 0); }
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0, 240, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--accent);
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .google-btn {
+            background: white;
+            color: #333;
+            border: 2px solid #ddd;
+            transition: all 0.3s ease;
+        }
+        
+        .google-btn:hover {
+            background: #f8f9fa;
+            transform: scale(1.02);
+        }
+        
+        footer {
+            background: var(--bg-secondary);
+            border-top: 1px solid rgba(0, 240, 255, 0.1);
+            padding: 30px 0;
+            margin-top: 50px;
+        }
+    </style>
+</head>
+<body>
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="?page=home">
+                <i class="fas fa-rocket"></i> SMM Panel Pro
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <?php if (isLoggedIn()): ?>
+                        <li class="nav-item">
+                            <a class="nav-link" href="?page=dashboard"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="?page=topup"><i class="fas fa-wallet"></i> Top Up</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="?page=history"><i class="fas fa-history"></i> History</a>
+                        </li>
+                        <?php if (isAdmin()): ?>
+                            <li class="nav-item">
+                                <a class="nav-link" href="?page=admin"><i class="fas fa-crown"></i> Admin <span class="admin-badge">ADMIN</span></a>
+                            </li>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                </ul>
+                <ul class="navbar-nav">
+                    <?php if (isLoggedIn()): ?>
+                        <li class="nav-item">
+                            <span class="nav-link">
+                                <i class="fas fa-user"></i> <?= sanitize($_SESSION['user_name']) ?>
+                                <?php if (isAdmin()): ?>
+                                    <span class="badge badge-danger ms-2">Admin</span>
+                                <?php endif; ?>
+                            </span>
+                        </li>
+                        <li class="nav-item">
+                            <form method="POST">
+                                <input type="hidden" name="action" value="logout">
+                                <button type="submit" class="nav-link btn btn-link">
+                                    <i class="fas fa-sign-out-alt"></i> Logout
+                                </button>
+                            </form>
+                        </li>
+                    <?php else: ?>
+                        <li class="nav-item">
+                            <a class="nav-link" href="?page=login"><i class="fas fa-sign-in-alt"></i> Login</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="?page=register"><i class="fas fa-user-plus"></i> Register</a>
+                        </li>
+                    <?php endif; ?>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <div class="container mt-4">
+        <?php
+        // Display messages
+        if (isset($_GET['error'])): ?>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-circle"></i> <?= sanitize($_GET['error']) ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <?php endif; ?>
+        
+        <?php if (isset($_GET['success'])): ?>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle"></i> <?= sanitize($_GET['success']) ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <?php endif; ?>
+
+        <?php
+        // ===== PAGE ROUTING =====
+        
+        // HOME PAGE
+        if ($page == 'home'): ?>
+            <div class="row align-items-center" style="min-height: 70vh;">
+                <div class="col-lg-6">
+                    <h1 class="display-3 fw-bold mb-4" style="background: linear-gradient(135deg, var(--accent), #00b8d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                        Premium SMM Panel
+                    </h1>
+                    <p class="lead mb-4 text-secondary">Boost your social media presence with our premium services. Fast delivery, best prices, 24/7 support.</p>
+                    <div class="d-flex gap-3">
+                        <?php if (!isLoggedIn()): ?>
+                            <a href="?page=register" class="btn btn-primary btn-lg"><i class="fas fa-rocket"></i> Get Started</a>
+                            <a href="?page=login" class="btn btn-outline-primary btn-lg"><i class="fas fa-sign-in-alt"></i> Login</a>
+                        <?php else: ?>
+                            <a href="?page=dashboard" class="btn btn-primary btn-lg"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <div class="col-lg-6 text-center">
+                    <i class="fas fa-chart-line" style="font-size: 300px; background: linear-gradient(135deg, var(--accent), #00b8d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; opacity: 0.3;"></i>
+                </div>
+            </div>
+            
+            <!-- Features -->
+            <div class="row mt-5">
+                <div class="col-md-4">
+                    <div class="card p-4 text-center">
+                        <i class="fas fa-bolt fa-3x mb-3" style="color: var(--accent);"></i>
+                        <h3>Fast Delivery</h3>
+                        <p class="text-secondary">Orders processed within minutes</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card p-4 text-center">
+                        <i class="fas fa-shield-alt fa-3x mb-3" style="color: var(--accent);"></i>
+                        <h3>Secure</h3>
+                        <p class="text-secondary">100% safe and secure transactions</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card p-4 text-center">
+                        <i class="fas fa-headset fa-3x mb-3" style="color: var(--accent);"></i>
+                        <h3>24/7 Support</h3>
+                        <p class="text-secondary">We are always here to help you</p>
+                    </div>
+                </div>
+            </div>
+        <?php endif;
+
+        // LOGIN PAGE
+        if ($page == 'login' && !isLoggedIn()): ?>
+            <div class="row justify-content-center mt-5">
+                <div class="col-md-6 col-lg-4">
+                    <div class="card p-4">
+                        <h2 class="text-center mb-4"><i class="fas fa-sign-in-alt"></i> Login</h2>
+                        <form method="POST">
+                            <input type="hidden" name="action" value="login">
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" name="email" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Password</label>
+                                <input type="password" name="password" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 mb-3">Login</button>
+                            <button type="button" class="btn google-btn w-100 mb-3">
+                                <i class="fab fa-google"></i> Login with Google (Simulation)
+                            </button>
+                            <div class="text-center">
+                                <a href="?page=register" class="text-decoration-none">Don't have an account? Register</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        <?php endif;
+
+        // REGISTER PAGE
+        if ($page == 'register' && !isLoggedIn()): ?>
+            <div class="row justify-content-center mt-5">
+                <div class="col-md-6 col-lg-4">
+                    <div class="card p-4">
+                        <h2 class="text-center mb-4"><i class="fas fa-user-plus"></i> Register</h2>
+                        <form method="POST">
+                            <input type="hidden" name="action" value="register">
+                            <div class="mb-3">
+                                <label class="form-label">Name</label>
+                                <input type="text" name="name" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" name="email" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Password</label>
+                                <input type="password" name="password" class="form-control" required minlength="6">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Phone Number</label>
+                                <input type="tel" name="phone" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 mb-3">Register</button>
+                            <div class="text-center">
+                                <a href="?page=login" class="text-decoration-none">Already have an account? Login</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        <?php endif;
+
+        // DASHBOARD
+        if ($page == 'dashboard' && isLoggedIn()): 
+            $balance = getUserBalance($_SESSION['user_id']);
+            $services = getServices();
+            
+            // Get last 5 orders
+            $conn = getDB();
+            $orders = $conn->query("SELECT o.*, s.name as service_name FROM orders o JOIN services s ON o.service_id = s.id WHERE o.user_id = " . $_SESSION['user_id'] . " ORDER BY o.created_at DESC LIMIT 5");
+            $conn->close();
+        ?>
+            <!-- Balance Card -->
+            <div class="balance-card">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <small>Current Balance</small>
+                        <h1>Rp <?= number_format($balance, 0, ',', '.') ?></h1>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <a href="?page=topup" class="btn btn-dark btn-lg"><i class="fas fa-plus-circle"></i> Top Up</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Order Form -->
+                <div class="col-lg-8">
+                    <div class="card p-4">
+                        <h3><i class="fas fa-shopping-cart"></i> New Order</h3>
+                        <form method="POST" enctype="multipart/form-data">
+                            <input type="hidden" name="action" value="place_order">
+                            <input type="hidden" name="csrf_token" value="<?= generateCSRF() ?>">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Service</label>
+                                    <select name="service_id" class="form-control" required>
+                                        <option value="">Select Service</option>
+                                        <?php foreach ($services as $service): ?>
+                                            <option value="<?= $service['id'] ?>">
+                                                <?= sanitize($service['name']) ?> - Rp <?= number_format($service['price'], 0, ',', '.') ?>/1000
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Target URL/Username</label>
+                                    <input type="text" name="target" class="form-control" required placeholder="https://instagram.com/username">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Quantity</label>
+                                    <input type="number" name="quantity" class="form-control" required min="10" placeholder="e.g., 1000">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Place Order</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="col-lg-4">
+                    <div class="card p-4 text-center">
+                        <i class="fas fa-shopping-bag fa-3x mb-3" style="color: var(--accent);"></i>
+                        <h4>Quick Stats</h4>
+                        <?php
+                        $conn = getDB();
+                        $totalOrders = $conn->query("SELECT COUNT(*) as total FROM orders WHERE user_id = " . $_SESSION['user_id'])->fetch_assoc()['total'];
+                        $completedOrders = $conn->query("SELECT COUNT(*) as total FROM orders WHERE user_id = " . $_SESSION['user_id'] . " AND status = 'completed'")->fetch_assoc()['total'];
+                        $conn->close();
+                        ?>
+                        <p class="text-secondary">Total Orders: <?= $totalOrders ?></p>
+                        <p class="text-secondary">Completed: <?= $completedOrders ?></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Orders -->
+            <div class="card p-4 mt-4">
+                <h3><i class="fas fa-clock"></i> Recent Orders</h3>
+                <div class="table-responsive">
+                    <table class="table table-dark">
+                        <thead>
+                            <tr>
+                                <th>Service</th>
+                                <th>Target</th>
+                                <th>Quantity</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if ($orders->num_rows > 0): ?>
+                                <?php while ($order = $orders->fetch_assoc()): ?>
+                                    <tr>
+                                        <td><?= sanitize($order['service_name']) ?></td>
+                                        <td><?= sanitize($order['target_url']) ?></td>
+                                        <td><?= number_format($order['quantity']) ?></td>
+                                        <td>Rp <?= number_format($order['price'], 0, ',', '.') ?></td>
+                                        <td>
+                                            <?php
+                                            $badgeClass = match($order['status']) {
+                                                'completed' => 'badge-success',
+                                                'processing' => 'badge-info',
+                                                'pending' => 'badge-warning',
+                                                'error' => 'badge-danger',
+                                                default => 'badge-info'
+                                            };
+                                            ?>
+                                            <span class="badge <?= $badgeClass ?>"><?= ucfirst($order['status']) ?></span>
+                                        </td>
+                                        <td><?= date('d/m/Y H:i', strtotime($order['created_at'])) ?></td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="6" class="text-center">No orders yet</td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        <?php endif;
+
+        // TOP UP PAGE
+        if ($page == 'topup' && isLoggedIn()): ?>
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="card p-4">
+                        <h3><i class="fas fa-wallet"></i> Top Up Balance</h3>
+                        <form method="POST" enctype="multipart/form-data">
+                            <input type="hidden" name="action" value="topup">
+                            <input type="hidden" name="csrf_token" value="<?= generateCSRF() ?>">
+                            <div class="mb-3">
+                                <label class="form-label">Amount</label>
+                                <div class="d-flex gap-2 mb-2">
+                                    <button type="button" class="btn btn-outline-primary" onclick="setAmount(10000)">Rp 10.000</button>
+                                    <button type="button" class="btn btn-outline-primary" onclick="setAmount(25000)">Rp 25.000</button>
+                                    <button type="button" class="btn btn-outline-primary" onclick="setAmount(50000)">Rp 50.000</button>
+                                    <button type="button" class="btn btn-outline-primary" onclick="setAmount(100000)">Rp 100.000</button>
+                                </div>
+                                <input type="number" name="amount" id="amount" class="form-control" required placeholder="Custom amount">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Payment Proof (JPG/PNG)</label>
+                                <input type="file" name="payment_proof" class="form-control" accept=".jpg,.jpeg,.png" required>
+                            </div>
+                            <div class="mb-3 p-3" style="background: var(--bg-secondary); border-radius: 10px;">
+                                <h6>Bank Transfer:</h6>
+                                <p class="mb-1">BCA: 1234567890 (SMM Panel Pro)</p>
+                                <p class="mb-0">Mandiri: 0987654321 (SMM Panel Pro)</p>
+                            </div>
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-upload"></i> Submit Payment Proof</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card p-4">
+                        <h3><i class="fas fa-history"></i> Top Up History</h3>
+                        <?php
+                        $conn = getDB();
+                        $transactions = $conn->query("SELECT * FROM transactions WHERE user_id = " . $_SESSION['user_id'] . " ORDER BY created_at DESC");
+                        $conn->close();
+                        ?>
+                        <div class="table-responsive">
+                            <table class="table table-dark">
+                                <thead>
+                                    <tr>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if ($transactions->num_rows > 0): ?>
+                                        <?php while ($trx = $transactions->fetch_assoc()): ?>
+                                            <tr>
+                                                <td>Rp <?= number_format($trx['amount'], 0, ',', '.') ?></td>
+                                                <td>
+                                                    <span class="badge badge-<?= match($trx['status']) { 'confirmed' => 'success', 'rejected' => 'danger', default => 'warning' } ?>">
+                                                        <?= ucfirst($trx['status']) ?>
+                                                    </span>
+                                                </td>
+                                                <td><?= date('d/m/Y H:i', strtotime($trx['created_at'])) ?></td>
+                                            </tr>
+                                        <?php endwhile; ?>
+                                    <?php else: ?>
+                                        <tr>
+                                            <td colspan="3" class="text-center">No transactions yet</td>
+                                        </tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <script>
+                function setAmount(amount) {
+                    document.getElementById('amount').value = amount;
+                }
+            </script>
+        <?php endif;
+
+        // HISTORY PAGE
+        if ($page == 'history' && isLoggedIn()): ?>
+            <div class="card p-4">
+                <h3><i class="fas fa-history"></i> Order History</h3>
+                <?php
+                $conn = getDB();
+                $filterStatus = isset($_GET['status']) ? sanitize($_GET['status']) : '';
+                $query = "SELECT o.*, s.name as service_name FROM orders o JOIN services s ON o.service_id = s.id WHERE o.user_id = " . $_SESSION['user_id'];
+                if ($filterStatus) {
+                    $query .= " AND o.status = '$filterStatus'";
+                }
+                $query .= " ORDER BY o.created_at DESC";
+                $orders = $conn->query($query);
+                $conn->close();
+                ?>
+                <div class="mb-3">
+                    <div class="btn-group">
+                        <a href="?page=history" class="btn btn-outline-primary <?= !$filterStatus ? 'active' : '' ?>">All</a>
+                        <a href="?page=history&status=pending" class="btn btn-outline-primary <?= $filterStatus == 'pending' ? 'active' : '' ?>">Pending</a>
+                        <a href="?page=history&status=processing" class="btn btn-outline-primary <?= $filterStatus == 'processing' ? 'active' : '' ?>">Processing</a>
+                        <a href="?page=history&status=completed" class="btn btn-outline-primary <?= $filterStatus == 'completed' ? 'active' : '' ?>">Completed</a>
+                        <a href="?page=history&status=error" class="btn btn-outline-primary <?= $filterStatus == 'error' ? 'active' : '' ?>">Error</a>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-dark">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Service</th>
+                                <th>Target</th>
+                                <th>Quantity</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if ($orders->num_rows > 0): ?>
+                                <?php while ($order = $orders->fetch_assoc()): ?>
+                                    <tr>
+                                        <td>#<?= $order['id'] ?></td>
+                                        <td><?= sanitize($order['service_name']) ?></td>
+                                        <td><?= sanitize($order['target_url']) ?></td>
+                                        <td><?= number_format($order['quantity']) ?></td>
+                                        <td>Rp <?= number_format($order['price'], 0, ',', '.') ?></td>
+                                        <td>
+                                            <?php
+                                            $badgeClass = match($order['status']) {
+                                                'completed' => 'badge-success',
+                                                'processing' => 'badge-info',
+                                                'pending' => 'badge-warning',
+                                                'error' => 'badge-danger',
+                                                default => 'badge-info'
+                                            };
+                                            ?>
+                                            <span class="badge <?= $badgeClass ?>"><?= ucfirst($order['status']) ?></span>
+                                        </td>
+                                        <td><?= date('d/m/Y H:i', strtotime($order['created_at'])) ?></td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="7" class="text-center">No orders found</td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        <?php endif;
+
+        // ADMIN PANEL
+        if ($page == 'admin' && isAdmin()): 
+            $conn = getDB();
+            
+            // Stats
+            $totalUsers = $conn->query("SELECT COUNT(*) as total FROM users")->fetch_assoc()['total'];
+            $totalOrders = $conn->query("SELECT COUNT(*) as total FROM orders")->fetch_assoc()['total'];
+            $totalRevenue = $conn->query("SELECT SUM(amount) as total FROM transactions WHERE status = 'confirmed'")->fetch_assoc()['total'] ?? 0;
+            
+            // Pending Transactions
+            $pendingTransactions = $conn->query("SELECT t.*, u.name, u.email FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.status = 'pending' ORDER BY t.created_at DESC");
+            
+            // Users
+            $users = $conn->query("SELECT * FROM users ORDER BY created_at DESC");
+            
+            $conn->close();
+        ?>
+            <!-- Admin Stats -->
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card p-4 text-center">
+                        <i class="fas fa-users fa-3x mb-3" style="color: var(--accent);"></i>
+                        <h3><?= $totalUsers ?></h3>
+                        <p class="text-secondary">Total Users</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card p-4 text-center">
+                        <i class="fas fa-shopping-cart fa-3x mb-3" style="color: var(--accent);"></i>
+                        <h3><?= $totalOrders ?></h3>
+                        <p class="text-secondary">Total Orders</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card p-4 text-center">
+                        <i class="fas fa-money-bill-wave fa-3x mb-3" style="color: var(--accent);"></i>
+                        <h3>Rp <?= number_format($totalRevenue, 0, ',', '.') ?></h3>
+                        <p class="text-secondary">Total Revenue</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sync Services -->
+            <div class="card p-4 mt-4">
+                <h3><i class="fas fa-sync"></i> Service Management</h3>
+                <button class="btn btn-primary" onclick="syncServices()">
+                    <i class="fas fa-sync"></i> Sync Services from Ezkify API
+                </button>
+                <span id="syncStatus"></span>
+            </div>
+
+            <!-- Pending Transactions -->
+            <div class="card p-4 mt-4">
+                <h3><i class="fas fa-clock"></i> Pending Transactions</h3>
+                <div class="table-responsive">
+                    <table class="table table-dark">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>User</th>
+                                <th>Amount</th>
+                                <th>Proof</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if ($pendingTransactions->num_rows > 0): ?>
+                                <?php while ($trx = $pendingTransactions->fetch_assoc()): ?>
+                                    <tr>
+                                        <td>#<?= $trx['id'] ?></td>
+                                        <td><?= sanitize($trx['name']) ?><br><small><?= sanitize($trx['email']) ?></small></td>
+                                        <td>Rp <?= number_format($trx['amount'], 0, ',', '.') ?></td>
+                                        <td><a href="uploads/<?= $trx['payment_proof'] ?>" target="_blank">View Proof</a></td>
+                                        <td><?= date('d/m/Y H:i', strtotime($trx['created_at'])) ?></td>
+                                        <td>
+                                            <form method="POST" style="display: inline;">
+                                                <input type="hidden" name="action" value="confirm_topup">
+                                                <input type="hidden" name="csrf_token" value="<?= generateCSRF() ?>">
+                                                <input type="hidden" name="transaction_id" value="<?= $trx['id'] ?>">
+                                                <input type="hidden" name="status" value="confirm">
+                                                <button type="submit" class="btn btn-success btn-sm"><i class="fas fa-check"></i> Confirm</button>
+                                            </form>
+                                            <form method="POST" style="display: inline;">
+                                                <input type="hidden" name="action" value="confirm_topup">
+                                                <input type="hidden" name="csrf_token" value="<?= generateCSRF() ?>">
+                                                <input type="hidden" name="transaction_id" value="<?= $trx['id'] ?>">
+                                                <input type="hidden" name="status" value="reject">
+                                                <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-times"></i> Reject</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="6" class="text-center">No pending transactions</td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- User Management -->
+            <div class="card p-4 mt-4">
+                <h3><i class="fas fa-users-cog"></i> User Management</h3>
+                <div class="table-responsive">
+                    <table class="table table-dark">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Balance</th>
+                                <th>Role</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php while ($user = $users->fetch_assoc()): ?>
+                                <tr>
+                                    <td><?= $user['id'] ?></td>
+                                    <td><?= sanitize($user['name']) ?></td>
+                                    <td><?= sanitize($user['email']) ?></td>
+                                    <td>Rp <?= number_format($user['balance'], 0, ',', '.') ?></td>
+                                    <td><span class="badge badge-<?= $user['role'] == 'admin' ? 'danger' : 'info' ?>"><?= $user['role'] ?></span></td>
+                                    <td><?= date('d/m/Y', strtotime($user['created_at'])) ?></td>
+                                    <td>
+                                        <?php if ($user['role'] != 'admin'): ?>
+                                            <button class="btn btn-primary btn-sm" onclick="editUser(<?= $user['id'] ?>, <?= $user['balance'] ?>)"><i class="fas fa-edit"></i></button>
+                                            <form method="POST" style="display: inline;">
+                                                <input type="hidden" name="action" value="delete_user">
+                                                <input type="hidden" name="csrf_token" value="<?= generateCSRF() ?>">
+                                                <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
+                                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this user?')"><i class="fas fa-trash"></i></button>
+                                            </form>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endwhile; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Edit User Modal -->
+            <div id="editUserModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; background: var(--bg-card); padding: 30px; border-radius: 15px; border: 1px solid var(--accent);">
+                <h4>Edit User Balance</h4>
+                <form method="POST">
+                    <input type="hidden" name="action" value="edit_user">
+                    <input type="hidden" name="csrf_token" value="<?= generateCSRF() ?>">
+                    <input type="hidden" name="user_id" id="editUserId">
+                    <div class="mb-3">
+                        <label class="form-label">Balance</label>
+                        <input type="number" name="balance" id="editUserBalance" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                </form>
+            </div>
+            <div id="modalOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999;" onclick="closeEditModal()"></div>
+
+            <script>
+                function syncServices() {
+                    document.getElementById('syncStatus').innerHTML = '<span class="loading-spinner"></span> Syncing...';
+                    fetch('', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                        body: 'ajax_action=sync_services'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            document.getElementById('syncStatus').innerHTML = '<span style="color: var(--success);">✓ Services synced successfully!</span>';
+                            setTimeout(() => location.reload(), 2000);
+                        }
+                    });
+                }
+                
+                function editUser(id, balance) {
+                    document.getElementById('editUserId').value = id;
+                    document.getElementById('editUserBalance').value = balance;
+                    document.getElementById('editUserModal').style.display = 'block';
+                    document.getElementById('modalOverlay').style.display = 'block';
+                }
+                
+                function closeEditModal() {
+                    document.getElementById('editUserModal').style.display = 'none';
+                    document.getElementById('modalOverlay').style.display = 'none';
+                }
+            </script>
+        <?php endif; ?>
+    </div>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4">
+                    <h5><i class="fas fa-rocket"></i> SMM Panel Pro</h5>
+                    <p class="text-secondary">Premium Social Media Marketing Services</p>
+                </div>
+                <div class="col-md-4">
+                    <h5>Quick Links</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="?page=home" class="text-secondary">Home</a></li>
+                        <li><a href="?page=dashboard" class="text-secondary">Dashboard</a></li>
+                        <li><a href="?page=topup" class="text-secondary">Top Up</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <h5>Contact</h5>
+                    <p class="text-secondary"><i class="fab fa-whatsapp"></i> WhatsApp Support</p>
+                </div>
+            </div>
+            <hr style="border-color: rgba(0, 240, 255, 0.1);">
+            <p class="text-center text-secondary mb-0">&copy; 2024 SMM Panel Pro. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+  </html>
